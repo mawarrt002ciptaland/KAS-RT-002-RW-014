@@ -119,7 +119,18 @@ export default function LoginPage() {
         </form>
 
 
-        {/* Link to NIK Register - Note 6 */}
+        <div className="mt-5 rounded-2xl bg-slate-50 border border-slate-200 p-3 text-left">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            Bantuan Login
+          </p>
+          <p className="text-[11px] text-slate-600 leading-relaxed">
+            Gunakan <span className="font-bold text-slate-800">username</span> atau <span className="font-bold text-slate-800">NIK</span> yang sudah terdaftar, lalu masukkan password akun Anda.
+          </p>
+          <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
+            Akun pengurus yang tersedia: <span className="font-semibold">admin</span>, <span className="font-semibold">ketuart</span>, dan <span className="font-semibold">bendahara</span>.
+          </p>
+        </div>
+
         <div className="mt-5 text-xs text-slate-500">
           Belum punya akun?{" "}
           <Link
