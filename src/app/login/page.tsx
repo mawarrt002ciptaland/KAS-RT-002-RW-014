@@ -122,6 +122,11 @@ export default function LoginPage() {
           </button>
         </form>
 
+        
+            </button>
+          </div>
+        </div>
+
         {/* Link to NIK Register - Note 6 */}
         <div className="mt-5 text-xs text-slate-500">
           Belum punya akun?{" "}
