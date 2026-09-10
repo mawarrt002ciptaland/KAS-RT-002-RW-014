@@ -128,7 +128,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             )}
             <div className="min-w-0">
               <p className="text-[13px] font-extrabold text-slate-800 leading-snug">
-                {branding?.namaRt || "Blok Mawar RT 002 RW 014"}
+                {branding?.namaRt || "Blok Mawar RT 002"}
               </p>
               <p className="truncate text-[9px] font-bold tracking-widest text-slate-400 uppercase">
                 {branding?.namaPerumahan || "Perumahan Ciptaland"}
@@ -166,10 +166,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
           <div className="m-3 rounded-2xl bg-indigo-50/70 p-4">
             <p className="text-xs font-extrabold text-indigo-600">
-              Butuh Bantuan?
+              Segera hadir — Website Resmi Warga Blok Mawar RT 002 RW 014.
             </p>
             <p className="mt-1 text-[11px] font-medium text-slate-500 leading-relaxed">
-              Hubungi pengurus RT 002 Blok Mawar untuk bantuan sistem.
+              Website Blok Mawar RT 002 RW 014 Ciptaland saat ini masih dalam tahap trial & error untuk memastikan seluruh fitur, informasi, dan tampilan berjalan dengan baik sebelum resmi diluncurkan.
             </p>
           </div>
         </aside>
