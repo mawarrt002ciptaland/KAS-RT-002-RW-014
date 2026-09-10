@@ -122,47 +122,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Demo Accounts Quick-Select */}
-        <div className="mt-6 pt-5 border-t border-slate-100 text-left">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-            Akses Cepat Pengurus & Warga:
-          </p>
-          <div className="grid grid-cols-2 gap-1.5 text-xs">
-            <button
-              type="button"
-              onClick={() => handleQuickDemo("admin", "admin123")}
-              className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-slate-700 text-left transition-colors"
-            >
-              <span className="font-bold block text-[11px] text-indigo-700">Admin</span>
-              <span className="text-[10px] text-slate-400">admin / admin123</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemo("bendahara", "bendahara123")}
-              className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-slate-700 text-left transition-colors"
-            >
-              <span className="font-bold block text-[11px] text-indigo-700">Bendahara RT</span>
-              <span className="text-[10px] text-slate-400">bendahara / bendahara123</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemo("ketuart", "ketua123")}
-              className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-slate-700 text-left transition-colors"
-            >
-              <span className="font-bold block text-[11px] text-indigo-700">Ketua RT</span>
-              <span className="text-[10px] text-slate-400">ketuart / ketua123</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemo("bayu", "warga123")}
-              className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-slate-700 text-left transition-colors"
-            >
-              <span className="font-bold block text-[11px] text-indigo-700">Warga (M-02)</span>
-              <span className="text-[10px] text-slate-400">bayu / warga123</span>
-            </button>
-          </div>
-        </div>
-
         {/* Link to NIK Register - Note 6 */}
         <div className="mt-5 text-xs text-slate-500">
           Belum punya akun?{" "}
