@@ -6,19 +6,12 @@ import { ModalBayarIuran } from "@/components/ModalBayarIuran";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
-const FALLBACK_TAGIHAN = [
-  { id: 1, wargaNama: "Bayu Sodik Permana", wargaNoRumah: "M-02", wargaNoHp: "081298765431", bulan: "April 2026", nominalKas: 30000, nominalSampah: 20000, totalTagihan: 50000, status: "lunas", tanggalBayar: "06 Apr 2026 10:15", metode: "Transfer BCA" },
-  { id: 2, wargaNama: "Gusti Adi Pratama", wargaNoRumah: "M-05", wargaNoHp: "081322334455", bulan: "April 2026", nominalKas: 30000, nominalSampah: 20000, totalTagihan: 50000, status: "belum_lunas", tanggalBayar: null, metode: null },
-  { id: 3, wargaNama: "Siti Aminah", wargaNoRumah: "M-08", wargaNoHp: "081366778899", bulan: "April 2026", nominalKas: 30000, nominalSampah: 20000, totalTagihan: 50000, status: "lunas", tanggalBayar: "07 Apr 2026 13:30", metode: "QRIS" },
-  { id: 4, wargaNama: "Hendro Wijaya", wargaNoRumah: "M-04", wargaNoHp: "081211223344", bulan: "April 2026", nominalKas: 30000, nominalSampah: 20000, totalTagihan: 50000, status: "belum_lunas", tanggalBayar: null, metode: null },
-];
-
 export default function TagihanPage() {
   const { user } = useAuth();
   const isWarga = user?.role === "warga";
 
   const [tagihan, setTagihan] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>({ totalTarget: 200000, totalTerkumpul: 100000, totalTertunda: 100000, countLunas: 2, countBelumLunas: 2, persentase: 50 });
+  const [stats, setStats] = useState<any>({ totalTarget: 0, totalTerkumpul: 0, totalTertunda: 0, countLunas: 0, countBelumLunas: 0, persentase: 0 });
   const [bulan, setBulan] = useState("April 2026");
   const [statusFilter, setStatusFilter] = useState("Semua");
   const [search, setSearch] = useState("");
@@ -26,6 +19,7 @@ export default function TagihanPage() {
   const [settings, setSettings] = useState<any>({ namaRt: "RT 002 RW 014", blok: "Blok Mawar", namaBank: "Bank Central Asia (BCA)", noRekening: "8720192831", atasNama: "KAS RT 002 BLOK MAWAR" });
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [openBayarModal, setOpenBayarModal] = useState(false);
+  const [serverAvailable, setServerAvailable] = useState(true);
 
   const computeStats = (rows: any[]) => {
     const totalTarget = rows.reduce((a, b) => a + Number(b.totalTagihan || 0), 0);
@@ -39,20 +33,16 @@ export default function TagihanPage() {
   const fetchTagihan = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/tagihan?bulan=${encodeURIComponent(bulan)}`);
+      const res = await fetch(`/api/tagihan?bulan=${encodeURIComponent(bulan)}`, { cache: "no-store" });
       const data = await res.json();
-      if (Array.isArray(data.tagihan) && data.tagihan.length > 0) {
-        setTagihan(data.tagihan);
-        setStats(data.stats || computeStats(data.tagihan));
-      } else {
-        const fallback = FALLBACK_TAGIHAN.filter((r) => r.bulan === bulan);
-        setTagihan(fallback);
-        setStats(computeStats(fallback));
-      }
+      const rows = Array.isArray(data.tagihan) ? data.tagihan : [];
+      setTagihan(rows);
+      setStats(data.stats || computeStats(rows));
+      setServerAvailable(true);
     } catch {
-      const fallback = FALLBACK_TAGIHAN.filter((r) => r.bulan === bulan);
-      setTagihan(fallback);
-      setStats(computeStats(fallback));
+      setTagihan([]);
+      setStats({ totalTarget: 0, totalTerkumpul: 0, totalTertunda: 0, countLunas: 0, countBelumLunas: 0, persentase: 0 });
+      setServerAvailable(false);
     } finally {
       setLoading(false);
       localStorage.setItem("kas_rt_tagihan_refresh", String(Date.now()));
@@ -118,12 +108,7 @@ export default function TagihanPage() {
       const res = await fetch("/api/tagihan", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: item.id,
-          status: nextStatus,
-          metode: nextStatus === "lunas" ? "Verifikasi Admin" : null,
-          catatan: nextStatus === "lunas" ? "Diubah manual oleh admin menjadi lunas" : "Diubah manual oleh admin menjadi belum lunas",
-        }),
+        body: JSON.stringify({ id: item.id, status: nextStatus, metode: nextStatus === "lunas" ? "Verifikasi Admin" : null, catatan: nextStatus === "lunas" ? "Diubah manual oleh admin menjadi lunas" : "Diubah manual oleh admin menjadi belum lunas" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal mengubah status");
@@ -156,6 +141,12 @@ export default function TagihanPage() {
         </div>
       )}
 
+      {!serverAvailable && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-[12px] text-rose-700">
+          Data tagihan real dari server/database tidak bisa dimuat saat ini. Pastikan endpoint API dan tabel tagihan di Neon sudah aktif.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm"><span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Target Penerimaan</span><p className="text-xl font-black text-slate-900 mt-1">Rp {shownStats.totalTarget?.toLocaleString("id-ID")}</p><p className="text-[11px] text-slate-400 mt-0.5">{isWarga ? "Akumulasi tagihan pribadi" : "Total tagihan warga"}</p></div>
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm"><div className="flex items-center justify-between"><span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Dana Terkumpul</span><span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">{shownStats.persentase}%</span></div><p className="text-xl font-black text-emerald-600 mt-1">Rp {shownStats.totalTerkumpul?.toLocaleString("id-ID")}</p><p className="text-[11px] text-emerald-600 font-semibold mt-0.5">{shownStats.countLunas} tagihan lunas</p></div>
@@ -173,8 +164,10 @@ export default function TagihanPage() {
           <table className="w-full text-left text-xs">
             <thead><tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider"><th className="pb-3 pl-2">Warga & Rumah</th><th className="pb-3">Kas RT</th><th className="pb-3">Sampah</th><th className="pb-3">Total Tagihan</th><th className="pb-3">Status</th><th className="pb-3">Waktu Bayar / Metode</th><th className="pb-3 text-right pr-2">Aksi</th></tr></thead>
             <tbody className="divide-y divide-slate-100 font-medium">
-              {filtered.length === 0 ? (
-                <tr><td colSpan={7} className="py-10 text-center text-slate-400">Belum ada data tagihan untuk periode ini. Klik <b>Generate Tagihan Baru</b> untuk membuat data awal warga berstatus belum lunas.</td></tr>
+              {loading ? (
+                <tr><td colSpan={7} className="py-10 text-center text-slate-400">Memuat data tagihan...</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={7} className="py-10 text-center text-slate-400">Tidak ada data tagihan real untuk periode ini. Klik <b>Generate Tagihan Baru</b> untuk membuat data baru di database.</td></tr>
               ) : filtered.map((item) => {
                 const isLunas = item.status === "lunas";
                 return (
