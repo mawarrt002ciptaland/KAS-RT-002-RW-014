@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
 const FALLBACK_TAGIHAN = [
-  { id: 1, wargaNama: "Bayu Sudik Pamarto", wargaNoRumah: "M-02", wargaNoHp: "081298765431", bulan: "April 2026", nominalKas: 30000, nominalSampah: 20000, totalTagihan: 50000, status: "lunas", tanggalBayar: "06 Apr 2026 10:15", metode: "Transfer BCA" },
+  { id: 1, wargaNama: "Bayu Sodik Permana", wargaNoRumah: "M-02", wargaNoHp: "081298765431", bulan: "April 2026", nominalKas: 30000, nominalSampah: 20000, totalTagihan: 50000, status: "lunas", tanggalBayar: "06 Apr 2026 10:15", metode: "Transfer BCA" },
   { id: 2, wargaNama: "Gusti Adi Pratama", wargaNoRumah: "M-05", wargaNoHp: "081322334455", bulan: "April 2026", nominalKas: 30000, nominalSampah: 20000, totalTagihan: 50000, status: "belum_lunas", tanggalBayar: null, metode: null },
   { id: 3, wargaNama: "Siti Aminah", wargaNoRumah: "M-08", wargaNoHp: "081366778899", bulan: "April 2026", nominalKas: 30000, nominalSampah: 20000, totalTagihan: 50000, status: "lunas", tanggalBayar: "07 Apr 2026 13:30", metode: "QRIS" },
   { id: 4, wargaNama: "Hendro Wijaya", wargaNoRumah: "M-04", wargaNoHp: "081211223344", bulan: "April 2026", nominalKas: 30000, nominalSampah: 20000, totalTagihan: 50000, status: "belum_lunas", tanggalBayar: null, metode: null },
