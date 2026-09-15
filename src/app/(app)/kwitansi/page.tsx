@@ -13,7 +13,7 @@ function KwitansiContent() {
   const [receipt, setReceipt] = useState<any>({
     noKwitansi: "KW-202604-0012",
     tanggal: "06 April 2026",
-    sudahTerimaDari: "Bayu Sudik Pamarto",
+    sudahTerimaDari: "Bayu Sodik Permana",
     noRumah: "Blok Mawar M-02",
     nominal: 50000,
     terbilang: "Lima Puluh Ribu Rupiah",
