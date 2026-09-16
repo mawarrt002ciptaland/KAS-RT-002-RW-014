@@ -45,7 +45,7 @@ export async function GET(req: Request) {
       perumahan: "Perumahan Ciptaland",
       blok: "Blok Mawar",
       bendahara: "Neny Melsya, S.Sp.",
-      ketuaRt: "Bambang Sodik Permana",
+      ketuaRt: "Eka Rista Yudhistira",
       namaBank: "Bank Central Asia (BCA)",
       noRekening: "8720192831",
       atasNama: "KAS RT 002 BLOK MAWAR",
@@ -121,7 +121,7 @@ export async function GET(req: Request) {
       kwitansi: {
         noKwitansi: "KW-202604-0012",
         tanggal: "06 April 2026",
-        sudahTerimaDari: "Bayu Sudik Pamarto",
+        sudahTerimaDari: "Bayu Sodik Permana",
         noRumah: "M-02",
         nominal: 50000,
         terbilang: "Lima Puluh Ribu Rupiah",
