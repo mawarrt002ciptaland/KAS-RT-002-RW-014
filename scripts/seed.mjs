@@ -23,7 +23,7 @@ async function seed() {
       'RT 002 RW 014',
       'Perumahan Ciptaland',
       'Blok Mawar',
-      'Eka Rista Yudhistira, ST.',
+      'Eka Rista Yudhistira, S.T.',
       '082171299984',
       'Neny Melsya, S.Sp.',
       '0882173735449',
