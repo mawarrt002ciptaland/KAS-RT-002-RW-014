@@ -23,12 +23,12 @@ async function seed() {
       'RT 002 RW 014',
       'Perumahan Ciptaland',
       'Blok Mawar',
-      'Bambang Sudik Pamarto',
-      '081234567890',
-      'Ahmad Suryana',
-      '081398765432',
-      'Bank Central Asia (BCA)',
-      '8720192831',
+      'Bayu Sodik Permana',
+      '081288385550',
+      'Neny Melsya, S.Sp.',
+      '082173735449',
+      'Bank Nasional Indonseia (BNI)',
+      '0799703264',
       'KAS RT 002 BLOK MAWAR',
       'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=00020101021226590014ID.LINKAJA.WWW01189360091100214002021587201928315204581253033605802ID5919KAS%20RT%20002%20BLOK%20MAWAR6009TANGERANG61051515462070703A0163048B5A',
       '/logo-ciptaland.png',
@@ -40,8 +40,8 @@ async function seed() {
 
   // Insert Warga (12 residents in Blok Mawar M-01 to M-12)
   const wargaList = [
-    { nik: "3201140102850001", nama: "Bambang Sudik Pamarto", noRumah: "M-01", noHp: "081234567890", statusTinggal: "Tetap", jml: 4, pekerjaan: "Wiraswasta" },
-    { nik: "3201141208920003", nama: "Bayu Sudik Pamarto", noRumah: "M-02", noHp: "081298765431", statusTinggal: "Tetap", jml: 3, pekerjaan: "Pegawai BUMN" },
+    { nik: "3201140102850001", nama: "Bayu Sodik Permana", noRumah: "M-01", noHp: "081288385550", statusTinggal: "Tetap", jml: 4, pekerjaan: "Wiraswasta" },
+    { nik: "3201141208920003", nama: "Bayu Sodik Permanao", noRumah: "M-02", noHp: "081288385550", statusTinggal: "Tetap", jml: 3, pekerjaan: "Pegawai BUMN" },
     { nik: "3201140504900002", nama: "Ahmad Suryana", noRumah: "M-03", noHp: "081398765432", statusTinggal: "Tetap", jml: 3, pekerjaan: "Akuntan" },
     { nik: "3201140903890006", nama: "Hendro Wijaya", noRumah: "M-04", noHp: "081211223344", statusTinggal: "Tetap", jml: 4, pekerjaan: "Teknisi Elektronik" },
     { nik: "3201142007880004", nama: "Gusti Adi Pratama", noRumah: "M-05", noHp: "081322334455", statusTinggal: "Tetap", jml: 2, pekerjaan: "Karyawan Swasta" },
@@ -235,9 +235,7 @@ async function seed() {
 
   // Insert Whatsapp Broadcast Logs
   const waLogs = [
-    { nama: "Bayu Sudik Pamarto (M-02)", nomor: "081298765431", pesan: "Tagihan Kas RT Bulan April 2026 sebesar Rp 50.000", status: "terkirim", tipe: "Tagihan" },
-    { nama: "Gusti Adi Pratama (M-05)", nomor: "081322334455", pesan: "Kwitansi Pembayaran No KW-202604-001 terkirim via WhatsApp", status: "terkirim", tipe: "Kwitansi" },
-    { nama: "Semua Warga Blok Mawar", nomor: "Grup WA RT 002", pesan: "Undangan Kerja Bakti Lingkungan Minggu pagi 07:00 WIB", status: "terkirim", tipe: "Pengumuman" }
+    { nama: "Bayu Sodik Permana (M-02)", nomor: "081288385550", pesan: "Tagihan Kas RT Bulan April 2026 sebesar Rp 50.000", status: "terkirim", tipe: "Tagihan" },
   ];
 
   for (const log of waLogs) {
