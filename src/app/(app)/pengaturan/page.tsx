@@ -34,7 +34,7 @@ function PengaturanContent() {
     namaRt: "RT 002 RW 014",
     perumahan: "Perumahan Ciptaland",
     blok: "Blok Mawar",
-    ketuaRt: "Eka Rista Yudhistira, ST.",
+    ketuaRt: "Eka Rista Yudhistira, S.T.",
     noHpKetua: "+62 821-7129-9984",
     bendahara: "Neny Melsya, S.Sp.",
     noHpBendahara: "082173735449",
