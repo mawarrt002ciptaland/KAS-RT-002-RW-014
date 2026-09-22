@@ -23,13 +23,13 @@ async function seed() {
       'RT 002 RW 014',
       'Perumahan Ciptaland',
       'Blok Mawar',
-      'Bambang Sudik Pamarto',
-      '081234567890',
-      'Ahmad Suryana',
-      '081398765432',
-      'Bank Central Asia (BCA)',
-      '8720192831',
-      'KAS RT 002 BLOK MAWAR',
+      'Eka Rista Yudhistira, S.T.',
+      '+62 821-7129-9984',
+      'Neny Melsya, S.Sp.',
+      '082173735449',
+      'Bank Nasional Indonesia (BNI)',
+      '0799703264',
+      'Neny Melsya',
       'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=00020101021226590014ID.LINKAJA.WWW01189360091100214002021587201928315204581253033605802ID5919KAS%20RT%20002%20BLOK%20MAWAR6009TANGERANG61051515462070703A0163048B5A',
       '/logo-ciptaland.png',
       50000,
@@ -40,9 +40,9 @@ async function seed() {
 
   // Insert Warga (12 residents in Blok Mawar M-01 to M-12)
   const wargaList = [
-    { nik: "3201140102850001", nama: "Bambang Sudik Pamarto", noRumah: "M-01", noHp: "081234567890", statusTinggal: "Tetap", jml: 4, pekerjaan: "Wiraswasta" },
-    { nik: "3201141208920003", nama: "Bayu Sudik Pamarto", noRumah: "M-02", noHp: "081298765431", statusTinggal: "Tetap", jml: 3, pekerjaan: "Pegawai BUMN" },
-    { nik: "3201140504900002", nama: "Ahmad Suryana", noRumah: "M-03", noHp: "081398765432", statusTinggal: "Tetap", jml: 3, pekerjaan: "Akuntan" },
+    { nik: "3201140102850001", nama: "Eka Rista Yudhistira, S.T.", noRumah: "M-01", noHp: "082171299984", statusTinggal: "Tetap", jml: 4, pekerjaan: "Karyawan Perusahaan" },
+    { nik: "3201141208920002", nama: "Bayu Sodik Permana", noRumah: "M-02", noHp: "081288395550", statusTinggal: "Tetap", jml: 3, pekerjaan: "Freelancer" },
+    { nik: "3201140504900003", nama: "Neny Melsya, S.Sp.", noRumah: "M-03", noHp: "082173735449", statusTinggal: "Tetap", jml: 3, pekerjaan: "Akuntan" },
     { nik: "3201140903890006", nama: "Hendro Wijaya", noRumah: "M-04", noHp: "081211223344", statusTinggal: "Tetap", jml: 4, pekerjaan: "Teknisi Elektronik" },
     { nik: "3201142007880004", nama: "Gusti Adi Pratama", noRumah: "M-05", noHp: "081322334455", statusTinggal: "Tetap", jml: 2, pekerjaan: "Karyawan Swasta" },
     { nik: "3201141806930007", nama: "Dedi Kurniawan", noRumah: "M-06", noHp: "081344556677", statusTinggal: "Tetap", jml: 3, pekerjaan: "Guru" },
@@ -65,9 +65,9 @@ async function seed() {
   // Admin, Ketua RT, Bendahara, and resident accounts (Bayu, Gusti Adi, Siti)
   const usersList = [
     { nik: null, username: "admin", password: "admin123", name: "Administrator RT", role: "admin", phone: "081100000001", houseNumber: "Sekretariat", avatar: "AD" },
-    { nik: "3201140102850001", username: "ketuart", password: "ketua123", name: "Bambang Sudik Pamarto", role: "ketua_rt", phone: "081234567890", houseNumber: "M-01", avatar: "BP" },
-    { nik: "3201140504900002", username: "bendahara", password: "bendahara123", name: "Ahmad Suryana", role: "bendahara", phone: "081398765432", houseNumber: "M-03", avatar: "AS" },
-    { nik: "3201141208920003", username: "bayu", password: "warga123", name: "Bayu Sudik Pamarto", role: "warga", phone: "081298765431", houseNumber: "M-02", avatar: "BY" },
+    { nik: "3201140102850001", username: "ketuart", password: "ketua123", name: "Eka Rista Yudhistira, S.T.", role: "ketua_rt", phone: "082171299984", houseNumber: "M-01", avatar: "BP" },
+    { nik: "3201140504900003", username: "bendahara", password: "bendahara123", name: "Neny Melsya", role: "bendahara", phone: "082173735449", houseNumber: "M-03", avatar: "AS" },
+    { nik: "3201141208920002", username: "bayu", password: "warga123", name: "Bayu Sodik Permana", role: "warga", phone: "081288395550", houseNumber: "M-02", avatar: "BY" },
     { nik: "3201142007880004", username: "gustiadi1", password: "warga123", name: "Gusti Adi Pratama", role: "warga", phone: "081322334455", houseNumber: "M-05", avatar: "GA" },
     { nik: "3201141510950005", username: "siti", password: "warga123", name: "Siti Aminah", role: "warga", phone: "081366778899", houseNumber: "M-08", avatar: "SA" }
   ];
