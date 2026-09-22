@@ -41,7 +41,7 @@ export function Header({ onOpenTransaction, onOpenAddWarga }: HeaderProps) {
     {
       id: 1,
       title: "Iuran Terverifikasi",
-      desc: "Bayu Sudik (M-02) membayar iuran April 2026 Rp 50.000 via Transfer",
+      desc: "Bayu Sodik (M-02) membayar iuran April 2026 Rp 50.000 via Transfer",
       time: "10 menit lalu",
       unread: true,
     },
