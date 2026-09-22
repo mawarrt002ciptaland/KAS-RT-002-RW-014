@@ -112,7 +112,7 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <span className="text-[11px] font-black uppercase tracking-wider text-indigo-600 block mb-0.5">
-            Selamat Datang, {user?.name ? user.name.split(" ")[0] : "Pak Ahmad"} 👋
+            Selamat Datang, {user?.name ? user.name.split(" ")[0] : "Pak Bayu"} 👋
           </span>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">
             Ringkasan Keuangan
