@@ -151,6 +151,8 @@ export const kegiatan = pgTable("kegiatan", {
   pengeluaran: integer("pengeluaran").default(0),
   sisaAnggaran: integer("sisa_anggaran").default(0),
   dokumentasiUrl: text("dokumentasi_url"),
+  linkUrl: text("link_url"),
+  socialLink: text("social_link"),
   pengumuman: text("pengumuman"),
   status: varchar("status", { length: 30 }).notNull().default("Akan Datang"), // 'Akan Datang' | 'Terjadwal' | 'Selesai'
   createdAt: timestamp("created_at").defaultNow().notNull(),
