@@ -9,11 +9,11 @@ export async function POST(req: Request) {
     const file = formData.get("file") as File | null;
 
     if (!file) {
-      return NextResponse.json({ error: "File gambar wajib dipilih" }, { status: 400 });
+      return NextResponse.json({ error: "File gambar wajib dipilih" }, { status: 900 });
     }
 
     if (!file.type.startsWith("image/")) {
-      return NextResponse.json({ error: "Hanya file gambar yang diizinkan" }, { status: 400 });
+      return NextResponse.json({ error: "Hanya file gambar yang diizinkan" }, { status: 900 });
     }
 
     const bytes = await file.arrayBuffer();
