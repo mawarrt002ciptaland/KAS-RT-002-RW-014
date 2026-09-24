@@ -16,7 +16,7 @@ export default function TagihanPage() {
   const [statusFilter, setStatusFilter] = useState("Semua");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState<any>({ namaRt: "RT 002 RW 014", blok: "Blok Mawar", namaBank: "Bank Central Asia (BCA)", noRekening: "8720192831", atasNama: "KAS RT 002 BLOK MAWAR" });
+  const [settings, setSettings] = useState<any>({ namaRt: "RT 002 RW 014", blok: "Blok Mawar", namaBank: "Bank Nasional Indonesia (BNI)", noRekening: "0799703264", atasNama: "Neny Melsya" });
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [openBayarModal, setOpenBayarModal] = useState(false);
   const [serverAvailable, setServerAvailable] = useState(true);
