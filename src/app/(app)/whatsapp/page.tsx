@@ -108,7 +108,7 @@ export default function WhatsappPage() {
                   onClick={() => {
                     setRecipientType("belum_lunas");
                     setPesan(
-                      "Yth. Bpk/Ibu Warga Blok Mawar, mengingatkan kembali untuk iuran kas RT dan sampah bulan April 2026 sebesar Rp 50.000. Pembayaran via transfer BCA 8720192831 a.n KAS RT 002 BLOK MAWAR. Terima kasih 🙏"
+                      "Yth. Bpk/Ibu Warga Blok Mawar, mengingatkan kembali untuk iuran kas RT dan sampah bulan April 2026 sebesar Rp 65.000. Pembayaran via transfer BNI 0799703264 a.n Neny Melsya. Terima kasih 🙏"
                     );
                   }}
                   className={`p-2.5 rounded-xl border text-center font-bold transition-all ${
