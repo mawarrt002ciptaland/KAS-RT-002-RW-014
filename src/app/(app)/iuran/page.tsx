@@ -16,6 +16,14 @@ export default function IuranMatrixPage() {
     "Februari 2026",
     "Maret 2026",
     "April 2026",
+    "Mei 2026",
+    "Juni 2026",
+    "Juli 2026",
+    "Agustus 2026",
+    "September 2026",
+    "Oktober 2026",
+    "November 2026",
+    "Desember 2026",
   ];
 
   const fetchData = async () => {
