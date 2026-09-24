@@ -20,14 +20,14 @@ interface BayarModalProps {
 }
 
 export function ModalBayarIuran({ isOpen, onClose, onSuccess, item }: BayarModalProps) {
-  const [metode, setMetode] = useState("Transfer BCA / QRIS");
+  const [metode, setMetode] = useState("Transfer BNI / QRIS");
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [catatan, setCatatan] = useState("");
   const [settings, setSettings] = useState<any>({
-    namaBank: "Bank Central Asia (BCA)",
-    noRekening: "8720192831",
-    atasNama: "KAS RT 002 BLOK MAWAR",
+    namaBank: "Bank Nasional Indonesia (BNI)",
+    noRekening: "0799703264",
+    atasNama: "Neny Melsya",
     qrisImage: "",
     logoImage: "",
   });
@@ -51,7 +51,7 @@ export function ModalBayarIuran({ isOpen, onClose, onSuccess, item }: BayarModal
   if (!isOpen || !item) return null;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(settings.noRekening || "8720192831");
+    navigator.clipboard.writeText(settings.noRekening || "0799703264");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -133,17 +133,17 @@ export function ModalBayarIuran({ isOpen, onClose, onSuccess, item }: BayarModal
               className="w-44 h-44 rounded-xl border border-slate-100 p-1 shadow-sm object-cover"
             />
             <span className="text-[10px] text-slate-400 mt-2 font-mono">
-              {settings.atasNama || "KAS RT 002 BLOK MAWAR"}
+              {settings.atasNama || "Neny Melsya"}
             </span>
           </div>
 
           <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-left flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-bold text-slate-700">{settings.namaBank || "Bank Central Asia (BCA)"}</p>
+              <p className="text-[11px] font-bold text-slate-700">{settings.namaBank || "Bank Nasional Indonesia (BNI)"}</p>
               <p className="text-sm font-black text-slate-900 font-mono tracking-wide">
-                {settings.noRekening || "8720192831"}
+                {settings.noRekening || "0799703264"}
               </p>
-              <p className="text-[10px] text-slate-500">a.n {settings.atasNama || "KAS RT 002 BLOK MAWAR"}</p>
+              <p className="text-[10px] text-slate-500">a.n {settings.atasNama || "Neny Melsya"}</p>
             </div>
             <button
               onClick={handleCopy}
@@ -161,7 +161,7 @@ export function ModalBayarIuran({ isOpen, onClose, onSuccess, item }: BayarModal
               onChange={(e) => setMetode(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-medium"
             >
-              <option value="Transfer BCA / QRIS">Transfer BCA / QRIS</option>
+              <option value="Transfer BCA / QRIS">Transfer BNI / QRIS</option>
               <option value="Transfer Bank Lain">Transfer Bank Lain</option>
               <option value="Tunai ke Bendahara">Tunai ke Bendahara</option>
             </select>
