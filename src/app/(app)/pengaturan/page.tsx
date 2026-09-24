@@ -63,7 +63,7 @@ function PengaturanContent() {
     noRekening: "0799703264",
     atasNama: "Neny Melsya",
     qrisImage: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=BNI-0799703264-NENY-MELSYA-KAS-RT002", 
-    iuranWajib: 50000,
+    iuranWajib: 65000,
     templateWaTagihan:
       "Yth. Bpk/Ibu [NAMA_WARGA] ([NO_RUMAH]), menginfokan iuran Kas RT 002 RW 014 Blok Mawar untuk bulan [BULAN] sebesar [NOMINAL]. Terima kasih!",
     templateWaKwitansi:
