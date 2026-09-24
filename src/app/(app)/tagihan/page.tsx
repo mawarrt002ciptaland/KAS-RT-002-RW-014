@@ -12,7 +12,7 @@ export default function TagihanPage() {
 
   const [tagihan, setTagihan] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({ totalTarget: 0, totalTerkumpul: 0, totalTertunda: 0, countLunas: 0, countBelumLunas: 0, persentase: 0 });
-  const [bulan, setBulan] = useState("April 2026");
+  const [bulan, setBulan] = useState("September 2026");
   const [statusFilter, setStatusFilter] = useState("Semua");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
