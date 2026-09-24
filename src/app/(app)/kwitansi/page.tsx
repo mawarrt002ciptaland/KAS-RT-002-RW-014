@@ -15,7 +15,7 @@ function KwitansiContent() {
     tanggal: "06 April 2026",
     sudahTerimaDari: "Bayu Sodik Permana",
     noRumah: "M-02", 
-    nominal: 50000,
+    nominal: 65000,
     terbilang: "Lima Puluh Ribu Rupiah",
     untukPembayaran: "Iuran Kas RT & Retribusi Kebersihan Sampah Periode April 2026",
     metodePembayaran: "Transfer BCA / QRIS",
