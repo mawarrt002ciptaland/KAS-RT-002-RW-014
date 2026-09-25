@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useMounted } from "@/hooks/use-mounted";
 import {
   PageHeader, StatCard, SectionTitle, EmptyState, ErrorState, CardSkeleton, Card,
 } from "@/components/shared";
@@ -55,7 +56,8 @@ export function TrafikView() {
   const url = useMemo(() => `/api/trafik?days=${days}`, [days]);
   const { data, loading, error, refetch } = useFetch<TrafikData>(url);
   const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
+  const mounted = useMounted();
+  const isDark = mounted && resolvedTheme === "dark";
   const gridColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)";
   const axisColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";
 

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useMounted } from "@/hooks/use-mounted";
 import {
   PageHeader,
   SectionTitle,
@@ -117,7 +118,8 @@ const CAT_COLORS = [
 export function LaporanView() {
   const isMobile = useIsMobile();
   const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
+  const mounted = useMounted();
+  const isDark = mounted && resolvedTheme === "dark";
 
   // Default period: first day of current year to today
   const now = new Date();

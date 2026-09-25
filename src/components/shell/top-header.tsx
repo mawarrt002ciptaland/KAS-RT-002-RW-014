@@ -5,6 +5,7 @@ import { useBrandStore } from "@/lib/brand-store";
 import { MENU_LABEL } from "@/lib/constants";
 import { Icon } from "@/components/shared/icon";
 import { useTheme } from "next-themes";
+import { useMounted } from "@/hooks/use-mounted";
 import { Menu, Search, Bell, Plus, ChevronDown, User } from "lucide-react";
 import { useEffect } from "react";
 import Image from "next/image";
@@ -13,6 +14,7 @@ export function TopHeader() {
   const { activeView, setDrawerOpen, setSearchOpen, setNotifOpen, setQuickOpen } = useAppStore();
   const brand = useBrandStore();
   const { theme, setTheme } = useTheme();
+  const mounted = useMounted();
 
   // Escape closes search
   useEffect(() => {
@@ -80,8 +82,9 @@ export function TopHeader() {
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           className="touch-target hidden items-center justify-center rounded-lg p-2 text-foreground hover:bg-muted sm:flex"
           aria-label="Ganti tema"
+          suppressHydrationWarning
         >
-          <Icon name={theme === "dark" ? "Sun" : "Moon"} className="h-5 w-5" />
+          <Icon name={mounted && theme === "dark" ? "Sun" : "Moon"} className="h-5 w-5" />
         </button>
 
         {/* Notifications */}

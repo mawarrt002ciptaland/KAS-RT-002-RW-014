@@ -612,3 +612,33 @@ Stage Summary:
   10. Header logo integrates with Pengaturan logo_url
 - Database: added User + AnggotaKK models, seeded with 6 user accounts + anggota KK entries.
 - New REST APIs: upload, auth/users (+login), warga/[id]/anggota, pengaturan/logo.
+
+---
+Task ID: HYDRATION-FIX-2
+Agent: Main (Z.ai Code)
+Task: Fix remaining hydration error — theme toggle icon (Sun/Moon) mismatch
+
+Root Cause:
+- The error trace pinpointed: `at Icon (icon.tsx:30) at TopHeader (top-header.tsx:84)`.
+- The theme toggle button rendered `<Icon name={theme === "dark" ? "Sun" : "Moon"} />`.
+- `next-themes` useTheme() returns `theme=undefined` during SSR → server renders "Moon".
+- BUT next-themes injects an inline script that resolves the theme (from localStorage/system) BEFORE client hydration — so on the client's first render `theme` could already be "dark" (if user prefers dark) → renders "Sun" → MISMATCH with server's "Moon" → hydration crash.
+- This only manifested when the client's resolved theme differed from the server's default assumption.
+
+Fix:
+- Imported `useMounted` into TopHeader and gated the icon: `<Icon name={mounted && theme === "dark" ? "Sun" : "Moon"} />`.
+  - Server render: mounted=false → "Moon"
+  - Client first render: mounted=false → "Moon" (MATCHES server, no mismatch)
+  - After mount (useEffect/useSyncExternalStore): mounted=true → correct icon based on resolved theme (post-hydration update, safe)
+- Added `suppressHydrationWarning` on the button as a belt-and-suspenders measure.
+- Also gated the same pattern in dashboard-view, trafik-view, laporan-view (isDark = `mounted && resolvedTheme === "dark"`) to prevent similar chart-color mismatches.
+
+Verification (Agent Browser):
+- Light mode: 0 hydration errors, 0 console errors.
+- Dark mode (emulated via set media dark + reload): 0 hydration errors — previously this crashed.
+- Theme toggle click: html class "light"→"dark", icon "lucide-moon"→"lucide-sun", 0 errors.
+- Lint: 0 errors, 0 warnings.
+
+Stage Summary:
+- The final hydration error (theme icon Sun/Moon mismatch) is fully resolved.
+- Mobile and desktop now load cleanly in both light and dark mode.

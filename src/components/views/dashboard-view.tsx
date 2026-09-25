@@ -31,7 +31,7 @@ export function DashboardView() {
   const { setActiveView, setQuickOpen } = useAppStore();
   const { resolvedTheme } = useTheme();
   const mounted = useMounted();
-  const isDark = resolvedTheme === "dark";
+  const isDark = mounted && resolvedTheme === "dark";
 
   if (loading) {
     return (
