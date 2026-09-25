@@ -253,6 +253,21 @@ dd{margin:0} dd.pembayar{font-size:17px;font-weight:700}
   <div class="strip"><p>Kwitansi ini sah tanpa tanda tangan dan stempel bila menggunakan cap RT</p>
     <p class="ts">${escapeHtml(formatTanggalLengkapID(new Date()))} &middot; ${escapeHtml(brand?.namaRT || "RT 002 Blok Mawar")}</p></div>
 </div></body></html>`;
+  // Open the receipt in a NEW WINDOW (escapes iframe sandbox where blob downloads are blocked).
+  // Then auto-trigger print so the user can "Save as PDF" → a real downloadable file.
+  const win = window.open("", "_blank");
+  if (win) {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    // Auto-focus + trigger print after the content renders
+    win.focus();
+    setTimeout(() => {
+      try { win.print(); } catch { /* user can print manually via Ctrl+P */ }
+    }, 400);
+    return;
+  }
+  // Fallback: blob download (works in non-iframe environments)
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -262,8 +277,6 @@ dd{margin:0} dd.pembayar{font-size:17px;font-weight:700}
   document.body.appendChild(a);
   a.click();
   a.remove();
-  // IMPORTANT: delay the revoke so the browser has time to read the blob.
-  // Revoking immediately cancels the download in most browsers.
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
@@ -445,7 +458,10 @@ export function KwitansiView() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            onClick={() => setDetail(k)}
+                            onClick={() => {
+                              downloadReceiptHtml(k, brand);
+                              toast.success(`Kwitansi ${k.kode} dibuka di tab baru`, { description: "Pilih \"Simpan sebagai PDF\" atau klik Cetak." });
+                            }}
                             aria-label={`Cetak kwitansi ${k.kode}`}
                           >
                             <Printer className="h-4 w-4" />
@@ -463,7 +479,7 @@ export function KwitansiView() {
                             variant="ghost"
                             onClick={() => {
                               downloadReceiptHtml(k, brand);
-                              toast.success(`File Kwitansi-${k.kode}.html diunduh`);
+                              toast.success(`Kwitansi ${k.kode} dibuka di tab baru`, { description: "Pilih \"Simpan sebagai PDF\" di dialog cetak untuk mengunduh file." });
                             }}
                             aria-label={`Unduh kwitansi ${k.kode}`}
                           >
@@ -544,7 +560,15 @@ function KwitansiMobileCard({
         <Button size="sm" onClick={onLihat} className="touch-target">
           <Eye className="h-3.5 w-3.5" /> Lihat
         </Button>
-        <Button size="sm" variant="outline" onClick={onLihat} className="touch-target">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            downloadReceiptHtml(k, brand);
+            toast.success(`Kwitansi ${k.kode} dibuka di tab baru`, { description: "Pilih \"Simpan sebagai PDF\" atau klik Cetak." });
+          }}
+          className="touch-target"
+        >
           <Printer className="h-3.5 w-3.5" /> Cetak
         </Button>
         <Button
@@ -560,7 +584,7 @@ function KwitansiMobileCard({
           variant="outline"
           onClick={() => {
             downloadReceiptHtml(k, brand);
-            toast.success(`File Kwitansi-${k.kode}.html diunduh`);
+            toast.success(`Kwitansi ${k.kode} dibuka di tab baru`, { description: "Pilih \"Simpan sebagai PDF\" di dialog cetak untuk mengunduh file." });
           }}
           className="touch-target"
         >
@@ -870,13 +894,19 @@ function ReceiptDetail({ k, brand, onClose }: { k: Kwitansi; brand: Brand; onClo
             variant="outline"
             onClick={() => {
               downloadReceiptHtml(k, brand);
-              toast.success(`File Kwitansi-${k.kode}.html diunduh`);
+              toast.success(`Kwitansi ${k.kode} dibuka di tab baru`, { description: "Pilih \"Simpan sebagai PDF\" di dialog cetak untuk mengunduh file." });
             }}
             className="touch-target"
           >
             <Download className="h-4 w-4" /> Unduh
           </Button>
-          <Button onClick={() => window.print()} className="touch-target">
+          <Button
+            onClick={() => {
+              downloadReceiptHtml(k, brand);
+              toast.success(`Kwitansi ${k.kode} dibuka di tab baru`, { description: "Pilih \"Simpan sebagai PDF\" atau klik Cetak." });
+            }}
+            className="touch-target"
+          >
             <Printer className="h-4 w-4" /> Cetak
           </Button>
         </div>
