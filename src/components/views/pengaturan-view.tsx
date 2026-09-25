@@ -30,11 +30,11 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import {
   Settings, Upload, Link2, Trash2, Edit, Plus, User, Users, Shield, Sun, Moon,
   Save, RefreshCw, Eye, EyeOff, Image as ImageIcon, QrCode, Wallet, Building2, KeyRound,
+  Loader2, Camera,
 } from "lucide-react";
 
 interface PengaturanResponse {
@@ -586,10 +586,15 @@ function UserRow({ user, mounted, onEdit, onDelete, onReset }: {
   return (
     <Card className="p-3 sm:p-4">
       <div className="flex items-start gap-3">
-        <Avatar className="h-11 w-11 shrink-0">
-          {user.foto ? <AvatarImage src={user.foto} alt={user.nama} /> : null}
-          <AvatarFallback className={roleBadgeClass(user.role)}>{initialsOf(user.nama)}</AvatarFallback>
-        </Avatar>
+        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full">
+          {user.foto ? (
+            <Image src={user.foto} alt={user.nama} width={48} height={48} unoptimized className="h-12 w-12 object-cover" />
+          ) : (
+            <div className={`flex h-12 w-12 items-center justify-center text-xs font-semibold ${roleBadgeClass(user.role)}`}>
+              {initialsOf(user.nama)}
+            </div>
+          )}
+        </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="truncate font-semibold">{user.nama}</p>
@@ -660,8 +665,33 @@ function UserFormInner({ mode, user, onSubmitted, onCancel }: {
   const [nama, setNama] = useState(user?.nama || "");
   const [role, setRole] = useState<Role>((user?.role as Role) || "warga");
   const [telepon, setTelepon] = useState(user?.telepon || "");
+  const [foto, setFoto] = useState(user?.foto || "");
+  const [urlInput, setUrlInput] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const previewInitials = nama.trim() ? initialsOf(nama) : "";
+
+  async function onPickPhoto(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    const url = await uploadImage(file);
+    setUploading(false);
+    if (!url) return;
+    setFoto(url);
+    toast.success("Foto terunggah");
+  }
+
+  function applyFotoUrl() {
+    const u = urlInput.trim();
+    if (!u) return toast.info("Tempel URL foto terlebih dahulu");
+    if (!/^https?:\/\//.test(u)) return toast.error("URL harus dimulai dengan http:// atau https://");
+    setFoto(u);
+    setUrlInput("");
+    toast.success("Foto diterapkan");
+  }
 
   async function submit() {
     if (mode === "create") {
@@ -671,8 +701,21 @@ function UserFormInner({ mode, user, onSubmitted, onCancel }: {
       if (password.length < 6) return toast.error("Password minimal 6 karakter");
       setSubmitting(true);
       const r = await postJSON("/api/auth/users", { email, password, nama, role, telepon });
+      if (!r.ok) { setSubmitting(false); return toast.error(r.error); }
+      // POST /api/auth/users doesn't accept foto → two-step: PATCH with { foto } after create
+      if (foto) {
+        const createdId = (r.data as { id?: string } | undefined)?.id;
+        if (createdId) {
+          const r2 = await patchJSON(`/api/auth/users/${createdId}`, { foto });
+          if (!r2.ok) {
+            setSubmitting(false);
+            toast.warning(`User dibuat, tapi foto gagal: ${r2.error}`);
+            onSubmitted();
+            return;
+          }
+        }
+      }
       setSubmitting(false);
-      if (!r.ok) return toast.error(r.error);
       toast.success(`User ${email} ditambahkan`);
       onSubmitted();
     } else {
@@ -683,6 +726,8 @@ function UserFormInner({ mode, user, onSubmitted, onCancel }: {
         if (password.length < 6) return toast.error("Password minimal 6 karakter");
         body.password = password;
       }
+      // Include foto if changed from original
+      if (foto !== (user.foto || "")) body.foto = foto;
       setSubmitting(true);
       const r = await patchJSON(`/api/auth/users/${user.id}`, body);
       setSubmitting(false);
@@ -694,6 +739,33 @@ function UserFormInner({ mode, user, onSubmitted, onCancel }: {
 
   return (
     <div className="grid gap-3">
+      {/* PHOTO UPLOAD AREA */}
+      <div className="flex flex-col items-center gap-3 rounded-xl border bg-muted/20 p-4 sm:flex-row sm:items-start sm:gap-4">
+        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-dashed border-border bg-background">
+          {foto ? (
+            <Image src={foto} alt="Foto profil" width={96} height={96} unoptimized className="h-24 w-24 object-cover" />
+          ) : previewInitials ? (
+            <div className={`flex h-24 w-24 items-center justify-center text-2xl font-bold ${roleBadgeClass(role)}`}>{previewInitials}</div>
+          ) : (
+            <div className="flex h-24 w-24 items-center justify-center text-muted-foreground"><User className="h-10 w-10" /></div>
+          )}
+          {uploading && <div className="absolute inset-0 flex items-center justify-center bg-background/70"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
+        </div>
+        <div className="flex-1 space-y-2">
+          <p className="text-sm font-medium">Foto Profil</p>
+          <p className="text-xs text-muted-foreground">PNG/JPG/WebP, maks 4MB. Tampil pada daftar akun.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant="secondary" disabled={uploading || submitting} onClick={() => fileRef.current?.click()} className="touch-target">{uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}{uploading ? "Mengunggah..." : "Upload Foto"}</Button>
+            {foto ? <Button type="button" size="sm" variant="outline" disabled={uploading || submitting} onClick={() => setFoto("")} className="text-destructive touch-target"><Trash2 className="h-4 w-4" /> Hapus Foto</Button> : null}
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input inputMode="url" placeholder="https://... atau /uploads/..." value={urlInput} onChange={(e) => setUrlInput(e.target.value)} className="touch-target" aria-label="URL foto" disabled={uploading || submitting} />
+            <Button type="button" size="sm" variant="secondary" disabled={uploading || submitting} onClick={applyFotoUrl} className="touch-target"><Link2 className="h-4 w-4" /> Terapkan</Button>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) await onPickPhoto(f); if (fileRef.current) fileRef.current.value = ""; }} />
+        </div>
+      </div>
+
       <div className="grid gap-1.5">
         <Label htmlFor="u-email">Email *</Label>
         <Input id="u-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={mode === "edit"} placeholder="email@rt002mawar.id" className="touch-target" />

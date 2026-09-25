@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Network, Plus, Phone, Mail, Trash2, Edit, User, Crown, Building2 } from "lucide-react";
+import { Network, Plus, Phone, Mail, Trash2, Edit, User, Crown } from "lucide-react";
 
 interface Pengurus {
   id: string; nama: string; jabatan: string; urutan: number;
@@ -22,9 +22,9 @@ interface Pengurus {
 }
 
 const JABATAN_OPTIONS = [
-  "Ketua RT", "Bendahara", "Sekretaris",
+  "Ketua RT 002", "Bendahara RT 002", "Sekretaris RT 002",
   "Koordinator Keamanan", "Koordinator Kebersihan", "Koordinator Sosial",
-  "Koordinator Pemuda", "Koordinator Agama", "Staf",
+  "Koordinator Pemuda", "Koordinator Agama", "Staf Administrasi",
 ];
 
 const EMPTY_FORM = { nama: "", jabatan: "", bidang: "", telepon: "", email: "", urutan: "0" };
@@ -60,7 +60,9 @@ export function StrukturView() {
   const sekretaris = items.find((p) => p !== ketua && p !== bendahara && /sekretaris/i.test(p.jabatan));
   const tier2 = [bendahara, sekretaris].filter(Boolean) as Pengurus[];
   const tier2Ids = new Set(tier2.map((p) => p.id));
-  const lainnya = items.filter((p) => p !== ketua && !tier2Ids.has(p.id));
+  const koordinator = items
+    .filter((p) => p !== ketua && !tier2Ids.has(p.id))
+    .sort((a, b) => (a.urutan ?? 0) - (b.urutan ?? 0) || a.nama.localeCompare(b.nama));
 
   function openCreate() { setFormMode("create"); setEditId(null); setForm(EMPTY_FORM); setFormOpen(true); }
   function openEdit(p: Pengurus) {
@@ -81,7 +83,7 @@ export function StrukturView() {
     const r = formMode === "edit" && editId ? await patchJSON(`/api/pengurus/${editId}`, payload) : await postJSON("/api/pengurus", payload);
     setSubmitting(false);
     if (!r.ok) return toast.error(r.error);
-    toast.success(formMode === "edit" ? "Pengurus diperbarui" : "Pengurus ditambahkan");
+    toast.success(formMode === "edit" ? "Perubahan disimpan" : "Pengurus ditambahkan");
     setFormOpen(false); refetch();
   }
 
@@ -107,28 +109,25 @@ export function StrukturView() {
         actions={<Button onClick={openCreate} className="touch-target"><Plus className="h-4 w-4" /> Tambah Pengurus</Button>}
       />
 
-      {/* HERO gradient banner */}
+      {/* HERO BANNER — green gradient */}
       <div className="overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary to-primary/70 p-5 text-white shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-white/85">
-              <Building2 className="h-4 w-4 shrink-0" />
-              <p className="text-xs font-semibold uppercase tracking-wide">Pengurus RT 002 Blok Mawar</p>
-            </div>
-            <h2 className="mt-1 text-xl font-bold leading-tight sm:text-2xl">Struktur Organisasi Pengurus</h2>
-            <p className="mt-1 text-sm text-white/85">Perumahan Ciptaland, Batam</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-white/85">Pengurus RT 002 Blok Mawar</p>
+            <h2 className="mt-1 text-2xl font-bold leading-tight sm:text-3xl">Struktur Organisasi</h2>
+            <p className="mt-1.5 text-sm text-white/85">Periode {periode} • Perumahan Ciptaland, Batam</p>
           </div>
-          <div className="flex items-center gap-2.5 rounded-xl bg-white/15 px-4 py-2.5 backdrop-blur-sm">
+          <div className="flex items-center gap-2.5 self-start rounded-xl bg-white/15 px-3.5 py-2.5 backdrop-blur-sm sm:self-auto">
             <Crown className="h-5 w-5 shrink-0" />
-            <div>
+            <div className="leading-tight">
               <p className="text-[10px] uppercase tracking-wide text-white/75">Periode</p>
-              <p className="text-base font-bold leading-tight">{periode}</p>
+              <p className="text-sm font-bold">{periode}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* BODY */}
+      {/* BODY — Org Chart */}
       {loading ? (
         <OrgChartSkeleton />
       ) : error ? (
@@ -138,30 +137,32 @@ export function StrukturView() {
           icon={<Network className="h-6 w-6" />}
           title="Belum ada pengurus"
           description="Tambahkan pengurus RT untuk mulai menyusun struktur organisasi."
-          action={<Button onClick={openCreate}><Plus className="h-4 w-4" /> Tambah Pengurus</Button>}
+          action={<Button onClick={openCreate} className="touch-target"><Plus className="h-4 w-4" /> Tambah Pengurus</Button>}
         />
       ) : (
         <div className="space-y-0">
-          {/* TIER 1 — Ketua RT */}
+          {/* LEVEL 1 — Ketua RT */}
           {ketua && (<>
-            <Tier1Card p={ketua} onEdit={() => openEdit(ketua)} onHapus={() => setHapus(ketua)} />
-            <Connector />
+            <div className="mx-auto max-w-md">
+              <KetuaCard p={ketua} onEdit={() => openEdit(ketua)} onHapus={() => setHapus(ketua)} />
+            </div>
+            {(tier2.length > 0 || koordinator.length > 0) && <ConnectorV />}
           </>)}
 
-          {/* TIER 2 — Bendahara + Sekretaris */}
+          {/* LEVEL 2 — Bendahara + Sekretaris */}
           {tier2.length > 0 && (<>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="mx-auto grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
               {tier2.map((p) => (
                 <Tier2Card key={p.id} p={p} onEdit={() => openEdit(p)} onHapus={() => setHapus(p)} />
               ))}
             </div>
-            {lainnya.length > 0 && <Connector />}
+            {koordinator.length > 0 && <ConnectorBranch />}
           </>)}
 
-          {/* TIER 3 — Koordinator-koordinator */}
-          {lainnya.length > 0 && (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {lainnya.map((p) => (
+          {/* LEVEL 3 — Koordinator */}
+          {koordinator.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {koordinator.map((p) => (
                 <Tier3Card key={p.id} p={p} onEdit={() => openEdit(p)} onHapus={() => setHapus(p)} />
               ))}
             </div>
@@ -211,15 +212,9 @@ export function StrukturView() {
               )}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="pg-bidang">Bidang</Label>
-                <Input id="pg-bidang" value={form.bidang} onChange={(e) => setForm({ ...form, bidang: e.target.value })} placeholder="Sosial / Keamanan / ..." className="touch-target" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="pg-urutan">Urutan</Label>
-                <Input id="pg-urutan" type="number" min="0" value={form.urutan} onChange={(e) => setForm({ ...form, urutan: e.target.value })} className="touch-target" />
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="pg-bidang">Bidang</Label>
+              <Input id="pg-bidang" value={form.bidang} onChange={(e) => setForm({ ...form, bidang: e.target.value })} placeholder="Pimpinan / Keuangan / Keamanan / ..." className="touch-target" />
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -231,6 +226,11 @@ export function StrukturView() {
                 <Label htmlFor="pg-email">Email</Label>
                 <Input id="pg-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@contoh.com" className="touch-target" autoComplete="email" />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="pg-urutan">Urutan</Label>
+              <Input id="pg-urutan" type="number" min="0" value={form.urutan} onChange={(e) => setForm({ ...form, urutan: e.target.value })} className="touch-target" />
             </div>
 
             <DialogFooter className="gap-2">
@@ -266,12 +266,23 @@ export function StrukturView() {
 }
 
 /** Vertical connector line between org-chart tiers. */
-function Connector() {
+function ConnectorV() {
   return <div className="mx-auto my-1 h-8 w-0.5 bg-primary/30 sm:h-10" aria-hidden="true" />;
 }
 
-/** Tier 1 — Ketua RT (large highlighted card). */
-function Tier1Card({ p, onEdit, onHapus }: { p: Pengurus; onEdit: () => void; onHapus: () => void; }) {
+/** Vertical drop + horizontal branch (desktop) connecting L2 to L3. */
+function ConnectorBranch() {
+  return (
+    <div aria-hidden="true">
+      <div className="mx-auto h-8 w-0.5 bg-primary/30 sm:h-10" />
+      <div className="mx-auto hidden h-0.5 w-full max-w-3xl bg-primary/30 sm:block" />
+      <div className="mx-auto h-4 w-0.5 bg-primary/30" />
+    </div>
+  );
+}
+
+/** LEVEL 1 — Ketua RT (centered, large highlighted card with Crown overlay). */
+function KetuaCard({ p, onEdit, onHapus }: { p: Pengurus; onEdit: () => void; onHapus: () => void; }) {
   const wa = waNumber(p.telepon);
   return (
     <Card className="relative border-2 border-primary bg-primary/5 p-5 shadow-sm sm:p-6">
@@ -279,34 +290,37 @@ function Tier1Card({ p, onEdit, onHapus }: { p: Pengurus; onEdit: () => void; on
         <Button size="sm" variant="ghost" onClick={onEdit} aria-label={`Edit ${p.nama}`} className="h-8 w-8 p-0"><Edit className="h-4 w-4" /></Button>
         <Button size="sm" variant="ghost" onClick={onHapus} aria-label={`Hapus ${p.nama}`} className="h-8 w-8 p-0"><Trash2 className="h-4 w-4 text-destructive" /></Button>
       </div>
-      <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-        <Avatar className="h-24 w-24 shrink-0 ring-4 ring-primary/15 sm:h-28 sm:w-28">
-          {p.foto ? <AvatarImage src={p.foto} alt={p.nama} /> : null}
-          <AvatarFallback className="bg-primary text-2xl font-bold text-primary-foreground">{initials(p.nama)}</AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <Badge className="bg-primary text-primary-foreground"><Crown className="h-3 w-3" /> {p.jabatan}</Badge>
-          <h3 className="mt-2 text-xl font-bold sm:text-2xl">{p.nama}</h3>
-          {p.bidang && <p className="mt-0.5 text-sm text-muted-foreground">Bidang: {p.bidang}</p>}
-          <div className="mt-3 flex flex-col gap-1.5 text-sm sm:flex-row sm:gap-4">
-            {p.telepon && (
-              <button type="button" onClick={() => openWhatsApp(wa, `Halo ${p.nama}, saya warga RT 002 Mawar`)} className="inline-flex items-center gap-1.5 text-left font-medium text-primary hover:underline">
-                <Phone className="h-4 w-4 shrink-0" /> <span className="truncate">{p.telepon}</span>
-              </button>
-            )}
-            {p.email && (
-              <a href={`mailto:${p.email}`} className="inline-flex items-center gap-1.5 truncate text-muted-foreground hover:text-primary">
-                <Mail className="h-4 w-4 shrink-0" /> <span className="truncate">{p.email}</span>
-              </a>
-            )}
+      <div className="flex flex-col items-center text-center">
+        <div className="relative mb-3">
+          <Avatar className="h-24 w-24 ring-4 ring-primary/15">
+            {p.foto ? <AvatarImage src={p.foto} alt={p.nama} /> : null}
+            <AvatarFallback className="bg-primary text-2xl font-bold text-primary-foreground">{initials(p.nama)}</AvatarFallback>
+          </Avatar>
+          <div className="absolute -right-1 -top-1 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow ring-2 ring-background">
+            <Crown className="h-4 w-4" />
           </div>
+        </div>
+        <h3 className="text-xl font-bold">{p.nama}</h3>
+        <Badge className="mt-2 bg-primary text-primary-foreground"><Crown className="h-3 w-3" /> {p.jabatan}</Badge>
+        {p.bidang && <p className="mt-1 text-xs text-muted-foreground">{p.bidang}</p>}
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs">
+          {p.telepon && (
+            <button type="button" onClick={() => openWhatsApp(wa, `Halo ${p.nama}, saya warga RT 002 Mawar`)} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary">
+              <Phone className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{p.telepon}</span>
+            </button>
+          )}
+          {p.email && (
+            <a href={`mailto:${p.email}`} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary">
+              <Mail className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{p.email}</span>
+            </a>
+          )}
         </div>
       </div>
     </Card>
   );
 }
 
-/** Tier 2 — Bendahara / Sekretaris (medium cards). */
+/** LEVEL 2 — Bendahara / Sekretaris (medium cards). */
 function Tier2Card({ p, onEdit, onHapus }: { p: Pengurus; onEdit: () => void; onHapus: () => void; }) {
   const wa = waNumber(p.telepon);
   return (
@@ -315,34 +329,32 @@ function Tier2Card({ p, onEdit, onHapus }: { p: Pengurus; onEdit: () => void; on
         <Button size="sm" variant="ghost" onClick={onEdit} aria-label={`Edit ${p.nama}`} className="h-8 w-8 p-0"><Edit className="h-4 w-4" /></Button>
         <Button size="sm" variant="ghost" onClick={onHapus} aria-label={`Hapus ${p.nama}`} className="h-8 w-8 p-0"><Trash2 className="h-4 w-4 text-destructive" /></Button>
       </div>
-      <div className="flex items-start gap-3">
-        <Avatar className="h-14 w-14 shrink-0 ring-2 ring-primary/15">
+      <div className="flex flex-col items-center text-center">
+        <Avatar className="h-16 w-16 ring-2 ring-primary/15">
           {p.foto ? <AvatarImage src={p.foto} alt={p.nama} /> : null}
           <AvatarFallback className="bg-primary/15 text-base font-bold text-primary">{initials(p.nama)}</AvatarFallback>
         </Avatar>
-        <div className="min-w-0 flex-1 pr-16">
-          <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">{p.jabatan}</Badge>
-          <p className="mt-1 truncate text-base font-bold">{p.nama}</p>
-          {p.bidang && <p className="truncate text-xs text-muted-foreground">{p.bidang}</p>}
-          <div className="mt-2 grid gap-1 text-xs">
-            {p.telepon && (
-              <button type="button" onClick={() => openWhatsApp(wa, `Halo ${p.nama}, saya warga RT 002 Mawar`)} className="flex items-center gap-1.5 text-left text-muted-foreground hover:text-primary">
-                <Phone className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{p.telepon}</span>
-              </button>
-            )}
-            {p.email && (
-              <a href={`mailto:${p.email}`} className="flex items-center gap-1.5 truncate text-muted-foreground hover:text-primary">
-                <Mail className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{p.email}</span>
-              </a>
-            )}
-          </div>
+        <p className="mt-2 truncate font-semibold">{p.nama}</p>
+        <Badge variant="outline" className="mt-1 border-primary/30 bg-primary/10 text-primary">{p.jabatan}</Badge>
+        {p.bidang && <p className="mt-1 truncate text-xs text-muted-foreground">{p.bidang}</p>}
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs">
+          {p.telepon && (
+            <button type="button" onClick={() => openWhatsApp(wa, `Halo ${p.nama}`)} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary">
+              <Phone className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{p.telepon}</span>
+            </button>
+          )}
+          {p.email && (
+            <a href={`mailto:${p.email}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary">
+              <Mail className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{p.email}</span>
+            </a>
+          )}
         </div>
       </div>
     </Card>
   );
 }
 
-/** Tier 3 — Koordinator-koordinator (standard grid cards). */
+/** LEVEL 3 — Koordinator (standard grid cards). */
 function Tier3Card({ p, onEdit, onHapus }: { p: Pengurus; onEdit: () => void; onHapus: () => void; }) {
   const wa = waNumber(p.telepon);
   return (
@@ -357,7 +369,7 @@ function Tier3Card({ p, onEdit, onHapus }: { p: Pengurus; onEdit: () => void; on
           <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">{initials(p.nama)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1 pr-14">
-          <p className="truncate font-bold">{p.nama}</p>
+          <p className="truncate font-semibold">{p.nama}</p>
           <Badge variant="secondary" className="mt-1">{p.jabatan}</Badge>
           {p.bidang && <p className="mt-1 truncate text-xs text-muted-foreground">{p.bidang}</p>}
           <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
@@ -378,17 +390,19 @@ function Tier3Card({ p, onEdit, onHapus }: { p: Pengurus; onEdit: () => void; on
   );
 }
 
-/** Loading skeleton mirroring the org-chart layout. */
+/** Loading skeleton mirroring the org-chart layout (3 tiers). */
 function OrgChartSkeleton() {
   return (
     <div className="space-y-0">
-      <CardSkeleton className="h-44 border-2 border-primary/30" />
-      <Connector />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <CardSkeleton className="h-32" />
-        <CardSkeleton className="h-32" />
+      <div className="mx-auto max-w-md">
+        <CardSkeleton className="h-56 border-2 border-primary/30" />
       </div>
-      <Connector />
+      <ConnectorV />
+      <div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
+        <CardSkeleton className="h-44" />
+        <CardSkeleton className="h-44" />
+      </div>
+      <ConnectorBranch />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} className="h-32" />)}
       </div>

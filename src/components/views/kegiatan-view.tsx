@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { useFetch, postJSON, deleteJSON } from "@/hooks/use-fetch";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useMounted } from "@/hooks/use-mounted";
 import {
   PageHeader, StatusBadge, EmptyState, ErrorState, CardSkeleton, Card,
 } from "@/components/shared";
-import { formatTanggalID, toISODate } from "@/lib/format";
+import {
+  formatTanggalID, formatTanggalLengkapID, formatJam, toISODate, relativeTime,
+} from "@/lib/format";
 import { KATEGORI_KEGIATAN } from "@/lib/constants";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -21,10 +24,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { CalendarDays, Plus, MapPin, Users, Eye, Trash2 } from "lucide-react";
+import Image from "next/image";
+import {
+  CalendarDays, Plus, MapPin, Users, Eye, Trash2, Filter, Clock,
+  ChevronRight, Calendar, CheckCircle2, Camera,
+} from "lucide-react";
 
 type KegiatanStatus = "akan_datang" | "berlangsung" | "selesai" | "dibatalkan";
 interface Kegiatan {
@@ -40,16 +45,133 @@ const STATUS_FILTERS = [
   { value: "selesai", label: "Selesai" },
 ] as const;
 
-function formatTanggalRange(mulai: string, selesai?: string | null) {
-  const s = formatTanggalID(mulai);
-  return !selesai ? s : `${s} - ${formatTanggalID(selesai)}`;
+const MONTH_ABBR = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+
+const EMPTY_MSG: Record<string, { title: string; desc: string; icon: "calendar" | "clock" | "check" }> = {
+  semua: { title: "Belum ada kegiatan", desc: "Tambahkan kegiatan baru untuk warga RT 002.", icon: "calendar" },
+  akan_datang: { title: "Belum ada kegiatan yang akan datang", desc: "Jadwalkan kegiatan mendatang untuk warga.", icon: "calendar" },
+  berlangsung: { title: "Tidak ada kegiatan berlangsung", desc: "Saat ini tidak ada kegiatan yang sedang berjalan.", icon: "clock" },
+  selesai: { title: "Belum ada kegiatan selesai", desc: "Riwayat kegiatan yang sudah selesai akan muncul di sini.", icon: "check" },
+};
+
+function badgeClassFor(status: KegiatanStatus): string {
+  switch (status) {
+    case "akan_datang": return "bg-primary text-primary-foreground";
+    case "berlangsung": return "bg-success text-success-foreground";
+    case "selesai": return "bg-muted text-muted-foreground";
+    case "dibatalkan": return "bg-destructive/10 text-destructive border border-destructive/30";
+  }
+}
+
+/** Calendar tear-off date badge. new Date(string) is deterministic → no hydration concern. */
+function DateBadge({ date, size = "lg", status = "akan_datang" }: {
+  date: string; size?: "lg" | "sm"; status?: KegiatanStatus;
+}) {
+  const d = new Date(date);
+  const dim = size === "lg" ? "h-16 w-16" : "h-12 w-12";
+  const textSize = size === "lg" ? "text-2xl" : "text-lg";
+  const sub = size === "lg" ? "text-[10px]" : "text-[9px]";
+  return (
+    <div className={`${dim} flex flex-col items-center justify-center rounded-xl ${badgeClassFor(status)} shrink-0`}>
+      <span className={`${textSize} font-bold leading-none`}>{d.getDate()}</span>
+      <span className={`${sub} uppercase tracking-wide opacity-90`}>{MONTH_ABBR[d.getMonth()]}</span>
+    </div>
+  );
+}
+
+function MetaRow({ k, full = false }: { k: Kegiatan; full?: boolean }) {
+  const hasTime = k.tanggalMulai.includes("T");
+  const dateLabel = full ? formatTanggalLengkapID(k.tanggalMulai) : formatTanggalID(k.tanggalMulai);
+  const timeLabel = hasTime ? ` • ${formatJam(k.tanggalMulai)}` : "";
+  return (
+    <div className={`mt-1.5 flex flex-col gap-1 text-xs text-muted-foreground ${full ? "sm:flex-row sm:flex-wrap sm:gap-x-4" : ""}`}>
+      <span className="flex items-center gap-1.5">
+        <Calendar className="h-3.5 w-3.5 shrink-0" /> <span className="min-w-0">{dateLabel}{timeLabel}</span>
+      </span>
+      {k.lokasi && (
+        <span className="flex items-center gap-1.5">
+          <MapPin className="h-3.5 w-3.5 shrink-0" /> <span className="min-w-0">{k.lokasi}</span>
+        </span>
+      )}
+      <span className="flex items-center gap-1.5">
+        <Users className="h-3.5 w-3.5 shrink-0" /> <span className="min-w-0">{k.jumlahPeserta} peserta</span>
+      </span>
+    </div>
+  );
+}
+
+function MetaBox({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded-lg border p-3">
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">{icon} {label}</p>
+      <p className="mt-1 font-medium">{value}</p>
+    </div>
+  );
+}
+
+function FeaturedCard({ k, onDetail }: { k: Kegiatan; onDetail: () => void }) {
+  return (
+    <div className="min-w-0 overflow-hidden rounded-2xl border-2 border-primary/30 bg-primary/5 p-4 sm:p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <DateBadge date={k.tanggalMulai} size="lg" status={k.status} />
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-primary">Kegiatan Mendatang</p>
+          <h3 className="mt-0.5 text-lg font-bold leading-tight sm:text-xl">{k.judul}</h3>
+          <div className="mt-1.5">
+            <Badge className="bg-primary/10 text-primary hover:bg-primary/15">{k.kategori}</Badge>
+          </div>
+          <MetaRow k={k} full />
+          {k.deskripsi && (
+            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{k.deskripsi}</p>
+          )}
+          <div className="mt-3">
+            <Button size="sm" onClick={onDetail} className="touch-target">
+              <Eye className="h-4 w-4" /> Lihat Detail
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivityCard({ k, onDetail, index }: { k: Kegiatan; onDetail: () => void; index: number }) {
+  return (
+    <Card
+      className="animate-in fade-in slide-in-from-bottom-2 cursor-pointer p-3 transition-shadow hover:shadow-md sm:p-4"
+      role="button"
+      tabIndex={0}
+      onClick={onDetail}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onDetail(); } }}
+      aria-label={`Lihat detail ${k.judul}`}
+      style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+    >
+      <div className="flex items-start gap-3">
+        <DateBadge date={k.tanggalMulai} size="sm" status={k.status} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="truncate font-semibold leading-tight">{k.judul}</p>
+            <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <Badge variant="secondary" className="text-[10px]">{k.kategori}</Badge>
+            <StatusBadge status={k.status} />
+          </div>
+          <MetaRow k={k} />
+          {k.deskripsi && (
+            <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground">{k.deskripsi}</p>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 export function KegiatanView() {
-  const isMobile = useIsMobile();
+  const mounted = useMounted();
   const { data, loading, error, refetch } = useFetch<{ items: Kegiatan[] }>("/api/kegiatan");
-  const [statusFilter, setStatusFilter] = useState("semua");
-  const [kategoriFilter, setKategoriFilter] = useState("semua");
+  const [statusFilter, setStatusFilter] = useState<string>("semua");
+  const [kategoriFilter, setKategoriFilter] = useState<string>("semua");
   const [createOpen, setCreateOpen] = useState(false);
   const [detail, setDetail] = useState<Kegiatan | null>(null);
   const [hapus, setHapus] = useState<Kegiatan | null>(null);
@@ -57,7 +179,7 @@ export function KegiatanView() {
   const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({
     judul: "", kategori: KATEGORI_KEGIATAN[0],
-    tanggalMulai: toISODate(new Date()), tanggalSelesai: "",
+    tanggalMulai: "", tanggalSelesai: "",
     lokasi: "", deskripsi: "",
   });
 
@@ -67,13 +189,20 @@ export function KegiatanView() {
     if (kategoriFilter !== "semua" && k.kategori !== kategoriFilter) return false;
     return true;
   });
+  const showFeatured = statusFilter === "semua" || statusFilter === "akan_datang";
+  const upcoming = filtered
+    .filter((k) => k.status === "akan_datang")
+    .sort((a, b) => new Date(a.tanggalMulai).getTime() - new Date(b.tanggalMulai).getTime());
+  const featured = showFeatured && upcoming.length > 0 ? upcoming[0] : null;
+  const listItems = featured ? filtered.filter((k) => k.id !== featured.id) : filtered;
 
-  function resetForm() {
+  function openCreate() {
     setForm({
       judul: "", kategori: KATEGORI_KEGIATAN[0],
       tanggalMulai: toISODate(new Date()), tanggalSelesai: "",
       lokasi: "", deskripsi: "",
     });
+    setCreateOpen(true);
   }
 
   async function handleSubmit() {
@@ -88,7 +217,7 @@ export function KegiatanView() {
     setSaving(false);
     if (!r.ok) return toast.error(r.error);
     toast.success("Kegiatan berhasil ditambahkan");
-    setCreateOpen(false); resetForm(); refetch();
+    setCreateOpen(false); refetch();
   }
 
   async function handleDelete() {
@@ -101,29 +230,49 @@ export function KegiatanView() {
     setHapus(null); setDetail(null); refetch();
   }
 
+  const empty = EMPTY_MSG[statusFilter] || EMPTY_MSG.semua;
+  const emptyIcon = empty.icon === "check"
+    ? <CheckCircle2 className="h-6 w-6" />
+    : empty.icon === "clock"
+      ? <Clock className="h-6 w-6" />
+      : <CalendarDays className="h-6 w-6" />;
+
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Kegiatan Warga" description="Agenda & kegiatan RT 002 Mawar"
+        title="Kegiatan Warga"
+        description="Agenda & kegiatan RT 002 Mawar"
         icon={<CalendarDays className="h-5 w-5" />}
         actions={
-          <Button onClick={() => setCreateOpen(true)} className="touch-target">
+          <Button onClick={openCreate} className="touch-target">
             <Plus className="h-4 w-4" /> Tambah Kegiatan
           </Button>
         }
       />
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full sm:w-auto">
-          <TabsList className="w-full sm:w-auto">
-            {STATUS_FILTERS.map((s) => (
-              <TabsTrigger key={s.value} value={s.value} className="flex-1">{s.label}</TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      {/* FILTER TABS — horizontally scrollable pills */}
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="flex min-w-0 flex-1 overflow-x-auto scrollbar-hide gap-2 pb-1">
+          {STATUS_FILTERS.map((s) => (
+            <button
+              key={s.value}
+              type="button"
+              onClick={() => setStatusFilter(s.value)}
+              aria-pressed={statusFilter === s.value}
+              className={`touch-target shrink-0 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors ${
+                statusFilter === s.value ? "bg-primary text-primary-foreground" : "border bg-card hover:bg-muted"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
         <Select value={kategoriFilter} onValueChange={setKategoriFilter}>
-          <SelectTrigger className="h-9 w-full sm:w-[200px]" aria-label="Filter kategori">
-            <SelectValue placeholder="Kategori" />
+          <SelectTrigger className="h-9 w-[150px] shrink-0 overflow-hidden rounded-full" aria-label="Filter kategori">
+            <span className="flex items-center gap-1.5">
+              <Filter className="h-3.5 w-3.5" />
+              <SelectValue placeholder="Kategori" />
+            </span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="semua">Semua Kategori</SelectItem>
@@ -134,65 +283,32 @@ export function KegiatanView() {
 
       {loading ? (
         <div className="grid gap-3">
-          {Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} className="h-28" />)}
+          <CardSkeleton className="h-32" />
+          {Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} className="h-24" />)}
         </div>
       ) : error ? (
         <ErrorState message={error} onRetry={refetch} />
       ) : filtered.length === 0 ? (
         <EmptyState
-          icon={<CalendarDays className="h-6 w-6" />}
-          title="Belum ada kegiatan" description="Tambahkan kegiatan baru untuk warga RT 002."
-          action={<Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4" /> Tambah Kegiatan</Button>}
+          icon={emptyIcon}
+          title={empty.title}
+          description={empty.desc}
+          action={<Button onClick={openCreate}><Plus className="h-4 w-4" /> Tambah Kegiatan</Button>}
         />
-      ) : isMobile ? (
-        <div className="grid gap-2">
-          {filtered.map((k) => <KegiatanCard key={k.id} k={k} onDetail={() => setDetail(k)} />)}
-        </div>
       ) : (
-        <Card className="overflow-hidden p-0">
-          <div className="scrollbar-thin overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Judul</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead>Tanggal Mulai</TableHead>
-                  <TableHead>Selesai</TableHead>
-                  <TableHead>Lokasi</TableHead>
-                  <TableHead>Peserta</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((k) => (
-                  <TableRow key={k.id}>
-                    <TableCell className="max-w-[200px] truncate font-medium">{k.judul}</TableCell>
-                    <TableCell><Badge variant="secondary">{k.kategori}</Badge></TableCell>
-                    <TableCell>{formatTanggalID(k.tanggalMulai)}</TableCell>
-                    <TableCell>{k.tanggalSelesai ? formatTanggalID(k.tanggalSelesai) : "—"}</TableCell>
-                    <TableCell className="max-w-[180px] truncate">{k.lokasi || "—"}</TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center gap-1">
-                        <Users className="h-3.5 w-3.5" />{k.jumlahPeserta}
-                      </span>
-                    </TableCell>
-                    <TableCell><StatusBadge status={k.status} /></TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setDetail(k)} aria-label={`Lihat detail ${k.judul}`}>
-                        <Eye className="h-4 w-4" /> Detail
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <div className="grid grid-cols-1 gap-3">
+          {featured && <FeaturedCard k={featured} onDetail={() => setDetail(featured)} />}
+          <div className="grid grid-cols-1 gap-2.5">
+            {listItems.map((k, i) => (
+              <ActivityCard key={k.id} k={k} index={i} onDetail={() => setDetail(k)} />
+            ))}
           </div>
-        </Card>
+        </div>
       )}
 
+      {/* CREATE DIALOG */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Tambah Kegiatan</DialogTitle>
             <DialogDescription>Buat kegiatan baru untuk warga RT 002.</DialogDescription>
@@ -200,14 +316,12 @@ export function KegiatanView() {
           <div className="grid gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="k-judul">Judul</Label>
-              <Input id="k-judul" value={form.judul}
-                onChange={(e) => setForm({ ...form, judul: e.target.value })}
-                placeholder="Contoh: Kerja bakti bersih saluran" />
+              <Input id="k-judul" value={form.judul} onChange={(e) => setForm({ ...form, judul: e.target.value })} placeholder="Contoh: Kerja bakti bersih saluran" />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="k-kategori">Kategori</Label>
               <Select value={form.kategori} onValueChange={(v) => setForm({ ...form, kategori: v })}>
-                <SelectTrigger id="k-kategori" className="w-full"><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
+                <SelectTrigger id="k-kategori" className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {KATEGORI_KEGIATAN.map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}
                 </SelectContent>
@@ -216,26 +330,20 @@ export function KegiatanView() {
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="k-mulai">Tanggal Mulai</Label>
-                <Input id="k-mulai" type="date" value={form.tanggalMulai}
-                  onChange={(e) => setForm({ ...form, tanggalMulai: e.target.value })} />
+                <Input id="k-mulai" type="date" value={form.tanggalMulai} onChange={(e) => setForm({ ...form, tanggalMulai: e.target.value })} />
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="k-selesai">Tanggal Selesai</Label>
-                <Input id="k-selesai" type="date" value={form.tanggalSelesai}
-                  onChange={(e) => setForm({ ...form, tanggalSelesai: e.target.value })} />
+                <Input id="k-selesai" type="date" value={form.tanggalSelesai} onChange={(e) => setForm({ ...form, tanggalSelesai: e.target.value })} />
               </div>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="k-lokasi">Lokasi</Label>
-              <Input id="k-lokasi" value={form.lokasi}
-                onChange={(e) => setForm({ ...form, lokasi: e.target.value })}
-                placeholder="Contoh: Lapangan Mawar" />
+              <Input id="k-lokasi" value={form.lokasi} onChange={(e) => setForm({ ...form, lokasi: e.target.value })} placeholder="Contoh: Lapangan Mawar" />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="k-deskripsi">Deskripsi</Label>
-              <Textarea id="k-deskripsi" value={form.deskripsi}
-                onChange={(e) => setForm({ ...form, deskripsi: e.target.value })}
-                rows={3} placeholder="Detail kegiatan..." />
+              <Textarea id="k-deskripsi" value={form.deskripsi} onChange={(e) => setForm({ ...form, deskripsi: e.target.value })} rows={3} placeholder="Detail kegiatan..." />
             </div>
           </div>
           <DialogFooter>
@@ -245,50 +353,69 @@ export function KegiatanView() {
         </DialogContent>
       </Dialog>
 
+      {/* DETAIL DIALOG */}
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="pr-8">{detail?.judul}</DialogTitle>
-            <DialogDescription>{detail?.kategori}</DialogDescription>
+            <DialogDescription>Detail kegiatan RT 002</DialogDescription>
           </DialogHeader>
           {detail && (
-            <div className="grid gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge status={detail.status} />
-                <Badge variant="secondary">{detail.kategori}</Badge>
-              </div>
-              <div className="grid gap-2 text-sm">
-                <div className="flex items-start gap-2">
-                  <CalendarDays className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                  <p className="font-medium">{formatTanggalRange(detail.tanggalMulai, detail.tanggalSelesai)}</p>
-                </div>
-                {detail.lokasi && (
-                  <div className="flex items-start gap-2">
-                    <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                    <p>{detail.lokasi}</p>
+            <div className="grid gap-4">
+              <div className="flex items-start gap-3">
+                <DateBadge date={detail.tanggalMulai} size="lg" status={detail.status} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <StatusBadge status={detail.status} />
+                    <Badge variant="secondary">{detail.kategori}</Badge>
                   </div>
-                )}
-                <div className="flex items-start gap-2">
-                  <Users className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                  <p>{detail.jumlahPeserta} peserta</p>
+                  <MetaRow k={detail} full />
                 </div>
               </div>
+              {detail.fotoUrl ? (
+                <div className="overflow-hidden rounded-xl border bg-muted">
+                  <Image src={detail.fotoUrl} alt={detail.judul}
+                    width={800} height={450}
+                    className="h-48 w-full object-cover sm:h-56" unoptimized />
+                </div>
+              ) : null}
               {detail.deskripsi && (
                 <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                  <p className="whitespace-pre-wrap">{detail.deskripsi}</p>
+                  <p className="whitespace-pre-wrap leading-relaxed">{detail.deskripsi}</p>
                 </div>
               )}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <MetaBox icon={<Calendar className="h-3.5 w-3.5" />} label="Mulai" value={formatTanggalLengkapID(detail.tanggalMulai)} />
+                <MetaBox icon={<Clock className="h-3.5 w-3.5" />} label="Selesai" value={detail.tanggalSelesai ? formatTanggalLengkapID(detail.tanggalSelesai) : "—"} />
+                {detail.lokasi && <MetaBox icon={<MapPin className="h-3.5 w-3.5" />} label="Lokasi" value={detail.lokasi} />}
+                <MetaBox icon={<Users className="h-3.5 w-3.5" />} label="Peserta" value={`${detail.jumlahPeserta} orang`} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Dibuat {mounted ? relativeTime(detail.createdAt) : "\u00A0"}
+              </p>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="destructive" onClick={() => setHapus(detail)} className="mr-auto">
-              <Trash2 className="h-4 w-4" /> Hapus
-            </Button>
-            <Button variant="outline" onClick={() => setDetail(null)}>Tutup</Button>
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+            {detail?.status === "selesai" && detail.fotoUrl ? (
+              <Button variant="outline" asChild className="sm:mr-auto">
+                <a href={detail.fotoUrl} target="_blank" rel="noopener noreferrer">
+                  <Camera className="h-4 w-4" /> Lihat Foto Kegiatan
+                </a>
+              </Button>
+            ) : <span className="hidden sm:block" />}
+            <div className="flex gap-2">
+              {detail && (
+                <Button variant="destructive" onClick={() => setHapus(detail)}>
+                  <Trash2 className="h-4 w-4" /> Hapus
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setDetail(null)}>Tutup</Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* DELETE CONFIRM */}
       <AlertDialog open={!!hapus} onOpenChange={(o) => !o && setHapus(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -310,40 +437,5 @@ export function KegiatanView() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  );
-}
-
-function KegiatanCard({ k, onDetail }: { k: Kegiatan; onDetail: () => void }) {
-  return (
-    <Card className="p-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{k.judul}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <Badge variant="secondary">{k.kategori}</Badge>
-            <StatusBadge status={k.status} />
-          </div>
-        </div>
-      </div>
-      <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
-        <p className="flex items-center gap-1.5">
-          <CalendarDays className="h-3.5 w-3.5" />
-          {formatTanggalRange(k.tanggalMulai, k.tanggalSelesai)}
-        </p>
-        {k.lokasi && (
-          <p className="flex items-center gap-1.5">
-            <MapPin className="h-3.5 w-3.5" />{k.lokasi}
-          </p>
-        )}
-        <p className="flex items-center gap-1.5">
-          <Users className="h-3.5 w-3.5" />{k.jumlahPeserta} peserta
-        </p>
-      </div>
-      <div className="mt-3 flex justify-end">
-        <Button variant="outline" size="sm" onClick={onDetail}>
-          <Eye className="h-4 w-4" /> Detail
-        </Button>
-      </div>
-    </Card>
   );
 }

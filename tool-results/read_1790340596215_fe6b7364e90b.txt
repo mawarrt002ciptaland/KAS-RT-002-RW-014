@@ -1,0 +1,791 @@
+     1→"use client";
+     2→
+     3→import { useRef, useState } from "react";
+     4→import { useFetch, postJSON, patchJSON, deleteJSON } from "@/hooks/use-fetch";
+     5→import { useMounted } from "@/hooks/use-mounted";
+     6→import { useBrandStore } from "@/lib/brand-store";
+     7→import { useAppStore } from "@/lib/store";
+     8→import {
+     9→  PageHeader, SectionTitle, ErrorState, CardSkeleton, Card, EmptyState,
+    10→} from "@/components/shared";
+    11→import {
+    12→  formatRupiah, parseRupiahInput, toThousandInput, relativeTime,
+    13→} from "@/lib/format";
+    14→import { useTheme } from "next-themes";
+    15→import Image from "next/image";
+    16→import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+    17→import { Button } from "@/components/ui/button";
+    18→import { Input } from "@/components/ui/input";
+    19→import { Textarea } from "@/components/ui/textarea";
+    20→import { Label } from "@/components/ui/label";
+    21→import { Switch } from "@/components/ui/switch";
+    22→import { Badge } from "@/components/ui/badge";
+    23→import {
+    24→  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    25→} from "@/components/ui/dialog";
+    26→import {
+    27→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    28→  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    29→} from "@/components/ui/alert-dialog";
+    30→import {
+    31→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    32→} from "@/components/ui/select";
+    33→import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+    34→import { toast } from "sonner";
+    35→import {
+    36→  Settings, Upload, Link2, Trash2, Edit, Plus, User, Users, Shield, Sun, Moon,
+    37→  Save, RefreshCw, Eye, EyeOff, Image as ImageIcon, QrCode, Wallet, Building2, KeyRound,
+    38→} from "lucide-react";
+    39→
+    40→interface PengaturanResponse {
+    41→  settings: Record<string, string>;
+    42→  items: { key: string; value: string; kategori?: string | null }[];
+    43→}
+    44→
+    45→type Role = "admin" | "ketua" | "bendahara" | "pengurus" | "warga";
+    46→interface UserItem {
+    47→  id: string; email: string; nama: string; role: Role;
+    48→  wargaId?: string | null; telepon?: string | null; foto?: string | null;
+    49→  status?: string | null; lastLogin?: string | null; createdAt: string;
+    50→}
+    51→
+    52→const PROFIL_KEYS = ["nama_rt", "rw", "perumahan", "kota", "periode_pengurus", "alamat"] as const;
+    53→const KEUANGAN_KEYS = [
+    54→  "iuran_bulanan", "iuran_keamanan", "iuran_kebersihan",
+    55→  "bank_nama", "bank_rekening", "bank_pemilik", "qris_url",
+    56→] as const;
+    57→
+    58→const ROLE_OPTIONS: { value: Role; label: string }[] = [
+    59→  { value: "admin", label: "Admin" },
+    60→  { value: "ketua", label: "Ketua RT" },
+    61→  { value: "bendahara", label: "Bendahara" },
+    62→  { value: "pengurus", label: "Pengurus" },
+    63→  { value: "warga", label: "Warga" },
+    64→];
+    65→
+    66→function roleBadgeClass(role: string) {
+    67→  switch (role) {
+    68→    case "admin": return "bg-primary/15 text-primary";
+    69→    case "ketua": return "bg-success/15 text-success";
+    70→    case "bendahara": return "bg-warning/20 text-warning";
+    71→    case "pengurus": return "bg-info/15 text-info";
+    72→    default: return "bg-muted text-muted-foreground";
+    73→  }
+    74→}
+    75→function roleLabel(role: string) {
+    76→  return ROLE_OPTIONS.find((o) => o.value === role)?.label || role;
+    77→}
+    78→function initialsOf(name: string) {
+    79→  const parts = name.trim().split(/\s+/);
+    80→  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    81→  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    82→}
+    83→
+    84→/** POST /api/upload with FormData field "file". Returns the URL or null on error. */
+    85→async function uploadImage(file: File): Promise<string | null> {
+    86→  const fd = new FormData();
+    87→  fd.append("file", file);
+    88→  try {
+    89→    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    90→    const j = await res.json();
+    91→    if (!res.ok) { toast.error(j?.error || "Gagal mengunggah"); return null; }
+    92→    return j.url as string;
+    93→  } catch {
+    94→    toast.error("Gagal terhubung ke server");
+    95→    return null;
+    96→  }
+    97→}
+    98→
+    99→function isImageUrl(u: string) {
+   100→  return /^https?:\/\//.test(u) || u.startsWith("/uploads/");
+   101→}
+   102→
+   103→export function PengaturanView() {
+   104→  const mounted = useMounted();
+   105→  const { data, loading, error, refetch } = useFetch<PengaturanResponse>("/api/pengaturan");
+   106→  const { theme, setTheme } = useTheme();
+   107→  const { role, setRole } = useAppStore();
+   108→  const { logoUrl: brandLogo, setBrand } = useBrandStore();
+   109→  const [tab, setTab] = useState("profil");
+   110→  const [draft, setDraft] = useState<Record<string, string>>({});
+   111→  const [saving, setSaving] = useState(false);
+   112→
+   113→  // Independent users fetch
+   114→  const usersFetch = useFetch<{ items: UserItem[]; count: number }>("/api/auth/users");
+   115→
+   116→  // Dialog state
+   117→  const [userDialogOpen, setUserDialogOpen] = useState(false);
+   118→  const [userMode, setUserMode] = useState<"create" | "edit">("create");
+   119→  const [editUser, setEditUser] = useState<UserItem | null>(null);
+   120→  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+   121→  const [resetUser, setResetUser] = useState<UserItem | null>(null);
+   122→
+   123→  const settings = data?.settings || {};
+   124→  const isDark = mounted && theme === "dark";
+   125→
+   126→  // --- Draft-overlay helpers (no useEffect sync, avoids lint) ---
+   127→  function getValue(key: string): string {
+   128→    return key in draft ? draft[key] : settings[key] ?? "";
+   129→  }
+   130→  function setValue(key: string, v: string) {
+   131→    setDraft((p) => ({ ...p, [key]: v }));
+   132→  }
+   133→  function clearDraft(keys: readonly string[]) {
+   134→    setDraft((p) => {
+   135→      const n = { ...p };
+   136→      for (const k of keys) delete n[k];
+   137→      return n;
+   138→    });
+   139→  }
+   140→
+   141→  // --- Save handlers ---
+   142→  async function saveProfil() {
+   143→    const changes: Record<string, string> = {};
+   144→    for (const k of PROFIL_KEYS) if (k in draft) changes[k] = draft[k];
+   145→    if (Object.keys(changes).length === 0) return toast.info("Tidak ada perubahan");
+   146→    setSaving(true);
+   147→    const r = await patchJSON("/api/pengaturan", changes);
+   148→    setSaving(false);
+   149→    if (!r.ok) return toast.error(r.error);
+   150→    toast.success("Profil RT disimpan");
+   151→    if ("nama_rt" in changes) setBrand({ namaRT: changes.nama_rt });
+   152→    clearDraft(PROFIL_KEYS);
+   153→    refetch();
+   154→  }
+   155→  async function saveKeuangan() {
+   156→    const changes: Record<string, string> = {};
+   157→    for (const k of KEUANGAN_KEYS) {
+   158→      if (!(k in draft)) continue;
+   159→      changes[k] = k.startsWith("iuran_") ? String(parseRupiahInput(draft[k] || "0")) : draft[k];
+   160→    }
+   161→    if (Object.keys(changes).length === 0) return toast.info("Tidak ada perubahan");
+   162→    setSaving(true);
+   163→    const r = await patchJSON("/api/pengaturan", changes);
+   164→    setSaving(false);
+   165→    if (!r.ok) return toast.error(r.error);
+   166→    toast.success("Pengaturan keuangan disimpan");
+   167→    clearDraft(KEUANGAN_KEYS);
+   168→    refetch();
+   169→  }
+   170→
+   171→  // --- Logo helpers ---
+   172→  async function applyLogo(url: string) {
+   173→    if (!isImageUrl(url)) return toast.error("URL harus dimulai dengan http:// atau /uploads/");
+   174→    setSaving(true);
+   175→    const r = await patchJSON("/api/pengaturan", { logo_url: url });
+   176→    setSaving(false);
+   177→    if (!r.ok) return toast.error(r.error);
+   178→    setBrand({ logoUrl: url });
+   179→    setValue("logo_url", url);
+   180→    toast.success("Logo diperbarui");
+   181→    refetch();
+   182→  }
+   183→  async function onLogoFile(file: File | undefined) {
+   184→    if (!file) return;
+   185→    const url = await uploadImage(file);
+   186→    if (!url) return;
+   187→    await applyLogo(url);
+   188→  }
+   189→  async function clearLogo() {
+   190→    setSaving(true);
+   191→    const r = await patchJSON("/api/pengaturan", { logo_url: "" });
+   192→    setSaving(false);
+   193→    if (!r.ok) return toast.error(r.error);
+   194→    setBrand({ logoUrl: "" });
+   195→    setValue("logo_url", "");
+   196→    toast.success("Logo dihapus");
+   197→    refetch();
+   198→  }
+   199→
+   200→  // --- QRIS helpers ---
+   201→  async function applyQris(url: string) {
+   202→    if (!isImageUrl(url)) return toast.error("URL harus dimulai dengan http:// atau /uploads/");
+   203→    setSaving(true);
+   204→    const r = await patchJSON("/api/pengaturan", { qris_image: url });
+   205→    setSaving(false);
+   206→    if (!r.ok) return toast.error(r.error);
+   207→    setValue("qris_image", url);
+   208→    toast.success("QRIS diperbarui. Kwitansi akan menampilkan QRIS ini.");
+   209→    refetch();
+   210→  }
+   211→  async function onQrisFile(file: File | undefined) {
+   212→    if (!file) return;
+   213→    const url = await uploadImage(file);
+   214→    if (!url) return;
+   215→    await applyQris(url);
+   216→  }
+   217→  async function clearQris() {
+   218→    setSaving(true);
+   219→    const r = await patchJSON("/api/pengaturan", { qris_image: "" });
+   220→    setSaving(false);
+   221→    if (!r.ok) return toast.error(r.error);
+   222→    setValue("qris_image", "");
+   223→    toast.success("QRIS dihapus");
+   224→    refetch();
+   225→  }
+   226→
+   227→  if (loading) {
+   228→    return (
+   229→      <div className="space-y-4">
+   230→        <PageHeader title="Pengaturan" icon={<Settings className="h-5 w-5" />} />
+   231→        <CardSkeleton className="h-12" />
+   232→        <div className="grid gap-3">
+   233→          {Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} className="h-20" />)}
+   234→        </div>
+   235→      </div>
+   236→    );
+   237→  }
+   238→  if (error) {
+   239→    return (
+   240→      <div className="space-y-4">
+   241→        <PageHeader title="Pengaturan" icon={<Settings className="h-5 w-5" />} />
+   242→        <ErrorState message={error} onRetry={refetch} />
+   243→      </div>
+   244→    );
+   245→  }
+   246→
+   247→  const currentLogo = getValue("logo_url") || brandLogo || "";
+   248→  const currentQris = getValue("qris_image") || "";
+   249→
+   250→  return (
+   251→    <div className="space-y-4">
+   252→      <PageHeader
+   253→        title="Pengaturan"
+   254→        description="Kelola profil RT, keuangan, akun login, & tampilan"
+   255→        icon={<Settings className="h-5 w-5" />}
+   256→        actions={
+   257→          <Button variant="outline" size="sm" onClick={refetch} className="touch-target">
+   258→            <RefreshCw className="h-4 w-4" /> Muat Ulang
+   259→          </Button>
+   260→        }
+   261→      />
+   262→
+   263→      <Tabs value={tab} onValueChange={setTab} className="w-full">
+   264→        <TabsList className="w-full">
+   265→          <TabsTrigger value="profil" className="flex-1"><Building2 className="h-3.5 w-3.5" /> Profil</TabsTrigger>
+   266→          <TabsTrigger value="keuangan" className="flex-1"><Wallet className="h-3.5 w-3.5" /> Keuangan</TabsTrigger>
+   267→          <TabsTrigger value="akun" className="flex-1"><Users className="h-3.5 w-3.5" /> Akun</TabsTrigger>
+   268→          <TabsTrigger value="tampilan" className="flex-1"><Sun className="h-3.5 w-3.5" /> Tampilan</TabsTrigger>
+   269→        </TabsList>
+   270→
+   271→        {/* ===== TAB 1: Profil RT ===== */}
+   272→        <TabsContent value="profil" className="mt-3 space-y-3">
+   273→          {/* LOGO UPLOAD */}
+   274→          <Card className="p-4 sm:p-5">
+   275→            <SectionTitle title="Logo RT" />
+   276→            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+   277→              <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/40">
+   278→                {currentLogo ? (
+   279→                  <Image src={currentLogo} alt="Logo RT" width={112} height={112} unoptimized className="object-contain" />
+   280→                ) : (
+   281→                  <div className="flex flex-col items-center gap-1 text-muted-foreground">
+   282→                    <ImageIcon className="h-8 w-8" />
+   283→                    <span className="text-[10px]">Tanpa logo</span>
+   284→                  </div>
+   285→                )}
+   286→              </div>
+   287→              <div className="flex-1 space-y-3">
+   288→                <p className="text-sm text-muted-foreground">
+   289→                  Logo tampil di header aplikasi & kwitansi. PNG/JPG/WebP/SVG, maks 4MB.
+   290→                </p>
+   291→                <ImageFileButton label="Upload dari Perangkat" onPick={onLogoFile} disabled={saving} />
+   292→                <div className="flex flex-col gap-2 sm:flex-row">
+   293→                  <Input inputMode="url" placeholder="https://... atau /uploads/..." value={getValue("logo_url")} onChange={(e) => setValue("logo_url", e.target.value)} className="touch-target" aria-label="URL logo" />
+   294→                  <Button variant="secondary" disabled={saving} onClick={() => { const u = getValue("logo_url").trim(); if (!u) return toast.info("Tempel URL logo terlebih dahulu"); applyLogo(u); }} className="touch-target">
+   295→                    <Link2 className="h-4 w-4" /> Terapkan
+   296→                  </Button>
+   297→                </div>
+   298→                {currentLogo && (
+   299→                  <Button variant="outline" size="sm" disabled={saving} onClick={clearLogo} className="text-destructive touch-target">
+   300→                    <Trash2 className="h-4 w-4" /> Hapus Logo
+   301→                  </Button>
+   302→                )}
+   303→              </div>
+   304→            </div>
+   305→          </Card>
+   306→
+   307→          {/* PROFIL FORM */}
+   308→          <Card className="p-4 sm:p-5">
+   309→            <SectionTitle title="Profil RT" />
+   310→            <div className="grid gap-3 sm:grid-cols-2">
+   311→              <Field label="Nama RT" value={getValue("nama_rt")} onChange={(v) => setValue("nama_rt", v)} placeholder="RT 002 Blok Mawar" />
+   312→              <Field label="RW" value={getValue("rw")} onChange={(v) => setValue("rw", v)} placeholder="014" />
+   313→              <Field label="Perumahan" value={getValue("perumahan")} onChange={(v) => setValue("perumahan", v)} placeholder="Ciptaland" />
+   314→              <Field label="Kota" value={getValue("kota")} onChange={(v) => setValue("kota", v)} placeholder="Batam" />
+   315→              <Field label="Periode Pengurus" value={getValue("periode_pengurus")} onChange={(v) => setValue("periode_pengurus", v)} placeholder="2024-2027" />
+   316→              <div className="grid gap-1.5 sm:col-span-2">
+   317→                <Label htmlFor="set-alamat">Alamat</Label>
+   318→                <Textarea id="set-alamat" rows={2} value={getValue("alamat")} onChange={(e) => setValue("alamat", e.target.value)} placeholder="Alamat lengkap RT" />
+   319→              </div>
+   320→            </div>
+   321→            <div className="mt-4 flex justify-end">
+   322→              <Button onClick={saveProfil} disabled={saving} className="touch-target">
+   323→                <Save className="h-4 w-4" /> {saving ? "Menyimpan..." : "Simpan"}
+   324→              </Button>
+   325→            </div>
+   326→          </Card>
+   327→        </TabsContent>
+   328→
+   329→        {/* ===== TAB 2: Keuangan ===== */}
+   330→        <TabsContent value="keuangan" className="mt-3 space-y-3">
+   331→          <Card className="p-4 sm:p-5">
+   332→            <SectionTitle title="Iuran & Bank" />
+   333→            <div className="grid gap-3 sm:grid-cols-2">
+   334→              <RupiahField label="Iuran Bulanan" value={getValue("iuran_bulanan")} onChange={(v) => setValue("iuran_bulanan", v)} />
+   335→              <RupiahField label="Iuran Keamanan" value={getValue("iuran_keamanan")} onChange={(v) => setValue("iuran_keamanan", v)} />
+   336→              <RupiahField label="Iuran Kebersihan" value={getValue("iuran_kebersihan")} onChange={(v) => setValue("iuran_kebersihan", v)} />
+   337→              <Field label="Nama Bank" value={getValue("bank_nama")} onChange={(v) => setValue("bank_nama", v)} placeholder="Bank BRI" />
+   338→              <Field label="No. Rekening" value={getValue("bank_rekening")} onChange={(v) => setValue("bank_rekening", v)} placeholder="1234-5678-9012-3" />
+   339→              <Field label="Atas Nama" value={getValue("bank_pemilik")} onChange={(v) => setValue("bank_pemilik", v)} placeholder="Endang Marliana" />
+   340→              <div className="grid gap-1.5 sm:col-span-2">
+   341→                <Label htmlFor="set-qris-url">URL QRIS (link)</Label>
+   342→                <Input id="set-qris-url" inputMode="url" value={getValue("qris_url")} onChange={(e) => setValue("qris_url", e.target.value)} placeholder="https://qris.id/..." className="touch-target" />
+   343→              </div>
+   344→            </div>
+   345→            <div className="mt-4 flex justify-end">
+   346→              <Button onClick={saveKeuangan} disabled={saving} className="touch-target">
+   347→                <Save className="h-4 w-4" /> {saving ? "Menyimpan..." : "Simpan"}
+   348→              </Button>
+   349→            </div>
+   350→          </Card>
+   351→
+   352→          {/* QRIS UPLOAD */}
+   353→          <Card className="p-4 sm:p-5">
+   354→            <SectionTitle title="Gambar QRIS" />
+   355→            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+   356→              <div className="flex h-32 w-32 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/40">
+   357→                {currentQris ? (
+   358→                  <Image src={currentQris} alt="QRIS" width={128} height={128} unoptimized className="object-contain" />
+   359→                ) : (
+   360→                  <div className="flex flex-col items-center gap-1 text-muted-foreground">
+   361→                    <QrCode className="h-8 w-8" />
+   362→                    <span className="text-[10px]">Belum ada</span>
+   363→                  </div>
+   364→                )}
+   365→              </div>
+   366→              <div className="flex-1 space-y-3">
+   367→                <p className="text-sm text-muted-foreground">
+   368→                  QRIS ini akan otomatis tampil di setiap kwitansi yang dicetak.
+   369→                </p>
+   370→                <ImageFileButton label="Upload dari Perangkat" onPick={onQrisFile} disabled={saving} />
+   371→                <div className="flex flex-col gap-2 sm:flex-row">
+   372→                  <Input inputMode="url" placeholder="https://... atau /uploads/..." value={getValue("qris_image")} onChange={(e) => setValue("qris_image", e.target.value)} className="touch-target" aria-label="URL gambar QRIS" />
+   373→                  <Button variant="secondary" disabled={saving} onClick={() => { const u = getValue("qris_image").trim(); if (!u) return toast.info("Tempel URL gambar QRIS terlebih dahulu"); applyQris(u); }} className="touch-target">
+   374→                    <Link2 className="h-4 w-4" /> Terapkan
+   375→                  </Button>
+   376→                </div>
+   377→                {currentQris && (
+   378→                  <Button variant="outline" size="sm" disabled={saving} onClick={clearQris} className="text-destructive touch-target">
+   379→                    <Trash2 className="h-4 w-4" /> Hapus QRIS
+   380→                  </Button>
+   381→                )}
+   382→              </div>
+   383→            </div>
+   384→          </Card>
+   385→        </TabsContent>
+   386→
+   387→        {/* ===== TAB 3: Akun (User Management) ===== */}
+   388→        <TabsContent value="akun" className="mt-3 space-y-3">
+   389→          <Card className="bg-muted/20 p-4 sm:p-5">
+   390→            <div className="flex items-start gap-3">
+   391→              <Shield className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+   392→              <p className="text-sm text-muted-foreground">
+   393→                Akun ini terintegrasi dengan database dan digunakan untuk login admin, Ketua RT, Bendahara, pengurus, maupun warga.
+   394→              </p>
+   395→            </div>
+   396→          </Card>
+   397→
+   398→          <div className="flex items-center justify-between gap-2">
+   399→            <h2 className="text-base font-semibold sm:text-lg">Manajemen Akun Login</h2>
+   400→            <Button
+   401→              size="sm"
+   402→              onClick={() => { setUserMode("create"); setEditUser(null); setUserDialogOpen(true); }}
+   403→              className="touch-target"
+   404→            >
+   405→              <Plus className="h-4 w-4" /> Tambah User
+   406→            </Button>
+   407→          </div>
+   408→
+   409→          {usersFetch.loading ? (
+   410→            <div className="grid gap-2">
+   411→              {Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} className="h-20" />)}
+   412→            </div>
+   413→          ) : usersFetch.error ? (
+   414→            <ErrorState message={usersFetch.error} onRetry={usersFetch.refetch} />
+   415→          ) : !usersFetch.data?.items?.length ? (
+   416→            <EmptyState
+   417→              icon={<User className="h-6 w-6" />}
+   418→              title="Belum ada akun"
+   419→              description="Tambahkan akun untuk admin, ketua, bendahara, pengurus, dan warga."
+   420→            />
+   421→          ) : (
+   422→            <div className="grid gap-2">
+   423→              {usersFetch.data.items.map((u) => (
+   424→                <UserRow
+   425→                  key={u.id}
+   426→                  user={u}
+   427→                  mounted={mounted}
+   428→                  onEdit={() => { setUserMode("edit"); setEditUser(u); setUserDialogOpen(true); }}
+   429→                  onDelete={() => setDeleteUserId(u.id)}
+   430→                  onReset={() => setResetUser(u)}
+   431→                />
+   432→              ))}
+   433→            </div>
+   434→          )}
+   435→        </TabsContent>
+   436→
+   437→        {/* ===== TAB 4: Tampilan ===== */}
+   438→        <TabsContent value="tampilan" className="mt-3 space-y-3">
+   439→          <Card className="divide-y p-0">
+   440→            <div className="flex items-center justify-between gap-3 p-4">
+   441→              <div className="flex items-start gap-3">
+   442→                {isDark ? <Moon className="mt-0.5 h-5 w-5 text-primary" /> : <Sun className="mt-0.5 h-5 w-5 text-primary" />}
+   443→                <div>
+   444→                  <p className="text-sm font-medium">Tema Gelap</p>
+   445→                  <p className="text-xs text-muted-foreground">Beralih antara mode terang & gelap</p>
+   446→                </div>
+   447→              </div>
+   448→              <Switch checked={!!isDark} onCheckedChange={(c) => setTheme(c ? "dark" : "light")} aria-label="Tema gelap" disabled={!mounted} />
+   449→            </div>
+   450→            <div className="flex items-center justify-between gap-3 p-4">
+   451→              <div className="flex items-start gap-3">
+   452→                <Users className="mt-0.5 h-5 w-5 text-primary" />
+   453→                <div>
+   454→                  <p className="text-sm font-medium">Mode Tampilan Warga</p>
+   455→                  <p className="text-xs text-muted-foreground">Tampilan mobile sederhana untuk warga</p>
+   456→                </div>
+   457→              </div>
+   458→              <Switch checked={role === "warga"} onCheckedChange={(c) => setRole(c ? "warga" : "admin")} aria-label="Mode warga" />
+   459→            </div>
+   460→          </Card>
+   461→
+   462→          <Card className="p-4 sm:p-5">
+   463→            <SectionTitle title="Pratinjau Tema" />
+   464→            <div className="rounded-xl border bg-background p-4">
+   465→              <div className="flex items-center gap-3">
+   466→                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+   467→                  <Shield className="h-5 w-5" />
+   468→                </div>
+   469→                <div className="min-w-0">
+   470→                  <p className="truncate text-sm font-semibold">RT 002 Blok Mawar</p>
+   471→                  <p className="text-xs text-muted-foreground">
+   472→                    {mounted ? (isDark ? "Mode Gelap aktif" : "Mode Terang aktif") : "\u00A0"}
+   473→                  </p>
+   474→                </div>
+   475→                <Badge variant="secondary" className="ml-auto">
+   476→                  {mounted ? (isDark ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />) : null}
+   477→                  <span className="ml-1">{mounted ? (isDark ? "Gelap" : "Terang") : "\u00A0"}</span>
+   478→                </Badge>
+   479→              </div>
+   480→            </div>
+   481→          </Card>
+   482→
+   483→          <p className="text-xs text-muted-foreground">
+   484→            Perubahan tampilan langsung tersimpan otomatis di perangkat ini.
+   485→          </p>
+   486→        </TabsContent>
+   487→      </Tabs>
+   488→
+   489→      {/* USER CREATE/EDIT DIALOG */}
+   490→      <UserFormDialog
+   491→        open={userDialogOpen}
+   492→        mode={userMode}
+   493→        user={editUser}
+   494→        onOpenChange={setUserDialogOpen}
+   495→        onSubmitted={() => { setUserDialogOpen(false); usersFetch.refetch(); }}
+   496→      />
+   497→
+   498→      {/* RESET PASSWORD DIALOG */}
+   499→      <ResetPasswordDialog
+   500→        user={resetUser}
+   501→        onClose={() => setResetUser(null)}
+   502→        onDone={() => { setResetUser(null); usersFetch.refetch(); }}
+   503→      />
+   504→
+   505→      {/* DELETE USER ALERT */}
+   506→      <AlertDialog open={!!deleteUserId} onOpenChange={(o) => !o && setDeleteUserId(null)}>
+   507→        <AlertDialogContent>
+   508→          <AlertDialogHeader>
+   509→            <AlertDialogTitle>Hapus akun ini?</AlertDialogTitle>
+   510→            <AlertDialogDescription>
+   511→              Tindakan ini tidak bisa dibatalkan. Akun akan dihapus permanen dari database.
+   512→            </AlertDialogDescription>
+   513→          </AlertDialogHeader>
+   514→          <AlertDialogFooter>
+   515→            <AlertDialogCancel className="touch-target">Batal</AlertDialogCancel>
+   516→            <AlertDialogAction
+   517→              className="touch-target bg-destructive text-destructive-foreground hover:bg-destructive/90"
+   518→              onClick={async (e) => {
+   519→                e.preventDefault();
+   520→                if (!deleteUserId) return;
+   521→                const r = await deleteJSON(`/api/auth/users/${deleteUserId}`);
+   522→                if (!r.ok) return toast.error(r.error);
+   523→                toast.success("User dihapus");
+   524→                setDeleteUserId(null);
+   525→                usersFetch.refetch();
+   526→              }}
+   527→            >
+   528→              Hapus
+   529→            </AlertDialogAction>
+   530→          </AlertDialogFooter>
+   531→        </AlertDialogContent>
+   532→      </AlertDialog>
+   533→    </div>
+   534→  );
+   535→}
+   536→
+   537→/* ---------- Sub-components ---------- */
+   538→
+   539→function Field({ label, value, onChange, placeholder }: {
+   540→  label: string; value: string; onChange: (v: string) => void; placeholder?: string;
+   541→}) {
+   542→  return (
+   543→    <div className="grid gap-1.5">
+   544→      <Label>{label}</Label>
+   545→      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="touch-target" />
+   546→    </div>
+   547→  );
+   548→}
+   549→
+   550→function RupiahField({ label, value, onChange }: {
+   551→  label: string; value: string; onChange: (v: string) => void;
+   552→}) {
+   553→  const num = parseRupiahInput(value || "");
+   554→  return (
+   555→    <div className="grid gap-1.5">
+   556→      <Label>{label}</Label>
+   557→      <Input inputMode="numeric" value={value ? toThousandInput(num) : ""} onChange={(e) => onChange(e.target.value)} placeholder="0" className="touch-target" />
+   558→      <p className="text-xs text-muted-foreground">{formatRupiah(num)}</p>
+   559→    </div>
+   560→  );
+   561→}
+   562→
+   563→function ImageFileButton({ label, onPick, disabled }: {
+   564→  label: string; onPick: (f: File | undefined) => Promise<void> | void; disabled?: boolean;
+   565→}) {
+   566→  const ref = useRef<HTMLInputElement>(null);
+   567→  const [busy, setBusy] = useState(false);
+   568→  return (
+   569→    <>
+   570→      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={async (e) => {
+   571→        const f = e.target.files?.[0];
+   572→        if (f) { setBusy(true); await onPick(f); setBusy(false); }
+   573→        if (ref.current) ref.current.value = "";
+   574→      }} />
+   575→      <Button size="sm" disabled={disabled || busy} onClick={() => ref.current?.click()} className="touch-target">
+   576→        <Upload className="h-4 w-4" /> {busy ? "Mengunggah..." : label}
+   577→      </Button>
+   578→    </>
+   579→  );
+   580→}
+   581→
+   582→function UserRow({ user, mounted, onEdit, onDelete, onReset }: {
+   583→  user: UserItem; mounted: boolean;
+   584→  onEdit: () => void; onDelete: () => void; onReset: () => void;
+   585→}) {
+   586→  return (
+   587→    <Card className="p-3 sm:p-4">
+   588→      <div className="flex items-start gap-3">
+   589→        <Avatar className="h-11 w-11 shrink-0">
+   590→          {user.foto ? <AvatarImage src={user.foto} alt={user.nama} /> : null}
+   591→          <AvatarFallback className={roleBadgeClass(user.role)}>{initialsOf(user.nama)}</AvatarFallback>
+   592→        </Avatar>
+   593→        <div className="min-w-0 flex-1">
+   594→          <div className="flex flex-wrap items-center gap-2">
+   595→            <p className="truncate font-semibold">{user.nama}</p>
+   596→            <Badge variant="secondary" className={roleBadgeClass(user.role)}>{roleLabel(user.role)}</Badge>
+   597→            {user.status && user.status !== "aktif" && (
+   598→              <Badge variant="outline" className="text-muted-foreground">{user.status}</Badge>
+   599→            )}
+   600→          </div>
+   601→          <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+   602→          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+   603→            {user.telepon && <span>{user.telepon}</span>}
+   604→            {user.lastLogin && mounted ? (
+   605→              <span className="inline-flex items-center gap-1">
+   606→                <span aria-hidden>·</span> Login {relativeTime(user.lastLogin)}
+   607→              </span>
+   608→            ) : null}
+   609→          </div>
+   610→        </div>
+   611→        <div className="flex shrink-0 gap-1">
+   612→          <Button variant="ghost" size="icon" className="touch-target h-9 w-9" onClick={onReset} aria-label="Reset password" title="Reset Password">
+   613→            <KeyRound className="h-4 w-4" />
+   614→          </Button>
+   615→          <Button variant="ghost" size="icon" className="touch-target h-9 w-9" onClick={onEdit} aria-label="Edit user" title="Edit">
+   616→            <Edit className="h-4 w-4" />
+   617→          </Button>
+   618→          <Button variant="ghost" size="icon" className="touch-target h-9 w-9 text-destructive" onClick={onDelete} aria-label="Hapus user" title="Hapus">
+   619→            <Trash2 className="h-4 w-4" />
+   620→          </Button>
+   621→        </div>
+   622→      </div>
+   623→    </Card>
+   624→  );
+   625→}
+   626→
+   627→function UserFormDialog({ open, mode, user, onOpenChange, onSubmitted }: {
+   628→  open: boolean; mode: "create" | "edit"; user: UserItem | null;
+   629→  onOpenChange: (o: boolean) => void; onSubmitted: () => void;
+   630→}) {
+   631→  return (
+   632→    <Dialog open={open} onOpenChange={onOpenChange}>
+   633→      <DialogContent className="max-h-[90vh] overflow-y-auto">
+   634→        <DialogHeader>
+   635→          <DialogTitle>{mode === "create" ? "Tambah User" : "Edit User"}</DialogTitle>
+   636→          <DialogDescription>
+   637→            {mode === "create" ? "Isi data akun login baru" : `Perbarui data ${user?.nama || ""}`}
+   638→          </DialogDescription>
+   639→        </DialogHeader>
+   640→        {open && (
+   641→          <UserFormInner
+   642→            key={mode === "edit" ? user?.id || "edit" : "new"}
+   643→            mode={mode}
+   644→            user={user}
+   645→            onSubmitted={onSubmitted}
+   646→            onCancel={() => onOpenChange(false)}
+   647→          />
+   648→        )}
+   649→      </DialogContent>
+   650→    </Dialog>
+   651→  );
+   652→}
+   653→
+   654→function UserFormInner({ mode, user, onSubmitted, onCancel }: {
+   655→  mode: "create" | "edit"; user: UserItem | null;
+   656→  onSubmitted: () => void; onCancel: () => void;
+   657→}) {
+   658→  const [email, setEmail] = useState(user?.email || "");
+   659→  const [password, setPassword] = useState("");
+   660→  const [nama, setNama] = useState(user?.nama || "");
+   661→  const [role, setRole] = useState<Role>((user?.role as Role) || "warga");
+   662→  const [telepon, setTelepon] = useState(user?.telepon || "");
+   663→  const [showPw, setShowPw] = useState(false);
+   664→  const [submitting, setSubmitting] = useState(false);
+   665→
+   666→  async function submit() {
+   667→    if (mode === "create") {
+   668→      if (!email) return toast.error("Email wajib diisi");
+   669→      if (!nama) return toast.error("Nama wajib diisi");
+   670→      if (!password) return toast.error("Password wajib diisi");
+   671→      if (password.length < 6) return toast.error("Password minimal 6 karakter");
+   672→      setSubmitting(true);
+   673→      const r = await postJSON("/api/auth/users", { email, password, nama, role, telepon });
+   674→      setSubmitting(false);
+   675→      if (!r.ok) return toast.error(r.error);
+   676→      toast.success(`User ${email} ditambahkan`);
+   677→      onSubmitted();
+   678→    } else {
+   679→      if (!user) return;
+   680→      if (!nama) return toast.error("Nama wajib diisi");
+   681→      const body: Record<string, string> = { nama, role, telepon };
+   682→      if (password) {
+   683→        if (password.length < 6) return toast.error("Password minimal 6 karakter");
+   684→        body.password = password;
+   685→      }
+   686→      setSubmitting(true);
+   687→      const r = await patchJSON(`/api/auth/users/${user.id}`, body);
+   688→      setSubmitting(false);
+   689→      if (!r.ok) return toast.error(r.error);
+   690→      toast.success(`User ${user.email} diperbarui`);
+   691→      onSubmitted();
+   692→    }
+   693→  }
+   694→
+   695→  return (
+   696→    <div className="grid gap-3">
+   697→      <div className="grid gap-1.5">
+   698→        <Label htmlFor="u-email">Email *</Label>
+   699→        <Input id="u-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={mode === "edit"} placeholder="email@rt002mawar.id" className="touch-target" />
+   700→        {mode === "edit" && <p className="text-[11px] text-muted-foreground">Email tidak dapat diubah</p>}
+   701→      </div>
+   702→      <div className="grid gap-1.5">
+   703→        <Label htmlFor="u-nama">Nama Lengkap *</Label>
+   704→        <Input id="u-nama" value={nama} onChange={(e) => setNama(e.target.value)} placeholder="Nama lengkap" className="touch-target" />
+   705→      </div>
+   706→      <div className="grid gap-1.5">
+   707→        <Label htmlFor="u-pw">{mode === "create" ? "Password *" : "Password"}</Label>
+   708→        <div className="relative">
+   709→          <Input id="u-pw" type={showPw ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "edit" ? "Kosongkan jika tidak diubah" : "Min. 6 karakter"} className="touch-target pr-10" />
+   710→          <Button type="button" variant="ghost" size="sm" className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 p-0" onClick={() => setShowPw((s) => !s)} aria-label={showPw ? "Sembunyikan password" : "Tampilkan password"}>
+   711→            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   712→          </Button>
+   713→        </div>
+   714→      </div>
+   715→      <div className="grid gap-1.5">
+   716→        <Label htmlFor="u-role">Role</Label>
+   717→        <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+   718→          <SelectTrigger id="u-role" className="touch-target w-full"><SelectValue /></SelectTrigger>
+   719→          <SelectContent>
+   720→            {ROLE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+   721→          </SelectContent>
+   722→        </Select>
+   723→      </div>
+   724→      <div className="grid gap-1.5">
+   725→        <Label htmlFor="u-telepon">Telepon</Label>
+   726→        <Input id="u-telepon" type="tel" value={telepon} onChange={(e) => setTelepon(e.target.value)} placeholder="0812xxxxxxx" className="touch-target" />
+   727→      </div>
+   728→      <DialogFooter>
+   729→        <Button variant="outline" onClick={onCancel} className="touch-target">Batal</Button>
+   730→        <Button onClick={submit} disabled={submitting} className="touch-target">
+   731→          <Save className="h-4 w-4" /> {submitting ? "Menyimpan..." : mode === "create" ? "Tambah" : "Simpan"}
+   732→        </Button>
+   733→      </DialogFooter>
+   734→    </div>
+   735→  );
+   736→}
+   737→
+   738→function ResetPasswordDialog({ user, onClose, onDone }: {
+   739→  user: UserItem | null; onClose: () => void; onDone: () => void;
+   740→}) {
+   741→  const [pw, setPw] = useState("");
+   742→  const [show, setShow] = useState(false);
+   743→  const [submitting, setSubmitting] = useState(false);
+   744→
+   745→  function handleClose(o: boolean) {
+   746→    if (!o) { setPw(""); setShow(false); onClose(); }
+   747→  }
+   748→
+   749→  async function submit() {
+   750→    if (!user) return;
+   751→    if (pw.length < 6) return toast.error("Password minimal 6 karakter");
+   752→    setSubmitting(true);
+   753→    const r = await patchJSON(`/api/auth/users/${user.id}`, { password: pw });
+   754→    setSubmitting(false);
+   755→    if (!r.ok) return toast.error(r.error);
+   756→    toast.success(`Password ${user.email} diperbarui`);
+   757→    setPw("");
+   758→    onDone();
+   759→  }
+   760→
+   761→  return (
+   762→    <Dialog open={!!user} onOpenChange={handleClose}>
+   763→      <DialogContent className="max-h-[90vh] overflow-y-auto">
+   764→        <DialogHeader>
+   765→          <DialogTitle>Reset Password</DialogTitle>
+   766→          <DialogDescription>
+   767→            Set password baru untuk <strong>{user?.email}</strong>
+   768→          </DialogDescription>
+   769→        </DialogHeader>
+   770→        <div className="grid gap-3">
+   771→          <div className="grid gap-1.5">
+   772→            <Label htmlFor="rp-pw">Password Baru</Label>
+   773→            <div className="relative">
+   774→              <Input id="rp-pw" type={show ? "text" : "password"} value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Min. 6 karakter" className="touch-target pr-10" />
+   775→              <Button type="button" variant="ghost" size="sm" className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 p-0" onClick={() => setShow((s) => !s)} aria-label={show ? "Sembunyikan password" : "Tampilkan password"}>
+   776→                {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   777→              </Button>
+   778→            </div>
+   779→          </div>
+   780→          <DialogFooter>
+   781→            <Button variant="outline" onClick={() => handleClose(false)} className="touch-target">Batal</Button>
+   782→            <Button onClick={submit} disabled={submitting} className="touch-target">
+   783→              <KeyRound className="h-4 w-4" /> {submitting ? "Menyimpan..." : "Reset Password"}
+   784→            </Button>
+   785→          </DialogFooter>
+   786→        </div>
+   787→      </DialogContent>
+   788→    </Dialog>
+   789→  );
+   790→}
+   791→

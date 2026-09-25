@@ -139,3 +139,57 @@ const mounted = useMounted();
 // in JSX:
 {mounted ? formatTanggalID(new Date()) : "\u00A0"}
 ```
+
+---
+
+## UPDATE ROUND 3 — Image Uploads & Layout Refinements
+
+### Existing upload API (works)
+- `POST /api/upload` — FormData field `file` (image png/jpg/webp/gif/svg, max 4MB) → `{ url: "/uploads/xxx.png", filename }`. Saves to /public/uploads/.
+- The `useBrandStore` (logo) and existing pengaturan logo/QRIS uploads already use this pattern.
+
+### Image upload helper (reuse this exact pattern)
+```tsx
+async function uploadImage(file: File): Promise<string | null> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch("/api/upload", { method: "POST", body: fd });
+  const j = await res.json();
+  if (!res.ok) { toast.error(j.error); return null; }
+  return j.url; // "/uploads/xxx.png"
+}
+// For "by URL" option: just use the URL string the user pasted (validate starts with http).
+```
+
+### Showing uploaded images
+Use `next/image` with `unoptimized` for `/uploads/*` and http URLs:
+```tsx
+<Image src={url} alt="..." width={120} height={120} className="object-cover" unoptimized />
+```
+
+### Print-to-file pattern (for kwitansi PDF download)
+The cleanest cross-browser approach that produces a real downloadable file: a print stylesheet that hides everything except `.print-receipt`, then `window.print()` (the browser's print dialog lets the user "Save as PDF" which downloads a file). Inject the style in the component:
+```tsx
+<style>{`
+  @media print {
+    body * { visibility: hidden !important; }
+    .print-receipt, .print-receipt * { visibility: visible !important; }
+    .print-receipt { position: absolute !important; left: 0; top: 0; width: 100% !important; padding: 24px !important; }
+    .no-print { display: none !important; }
+  }
+`}</style>
+```
+Also offer a real file download of the receipt as a standalone HTML file (Blob + anchor download) as a fallback that always produces a file:
+```tsx
+function downloadReceiptHtml(kode, html) {
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `Kwitansi-${kode}.html`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+```
+
+### Hydration rule (STILL CRITICAL)
+Never call `new Date()`, `Date.now()`, `Math.random()` in render. Gate with `useMounted()`. For `useTheme()` derived values: `const isDark = mounted && resolvedTheme === "dark"`.
