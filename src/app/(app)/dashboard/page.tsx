@@ -14,7 +14,12 @@ import {
   ChevronRight,
   Calendar,
   MoreVertical,
+  ExternalLink,
+  Globe,
+  PhoneCall,
+  Sparkles,
 } from "lucide-react";
+import { resolveMediaUrl } from "@/lib/media";
 import { useAuth } from "@/context/AuthContext";
 import { ModalCatatTransaksi } from "@/components/ModalCatatTransaksi";
 import { ModalTambahWarga } from "@/components/ModalTambahWarga";
@@ -43,20 +48,35 @@ export default function DashboardPage() {
 
   const [openTrxModal, setOpenTrxModal] = useState(false);
   const [openWargaModal, setOpenWargaModal] = useState(false);
+  const [linksConfig, setLinksConfig] = useState<any>({
+    waAduanWarga: "081234567890",
+    youtubeUrl: "https://www.youtube.com",
+    websiteName1: "Portal Warga Ciptaland",
+    websiteUrl1: "https://ciptaland.id",
+    websiteLogo1: "",
+    websiteName2: "Pemerintah Kota Batam",
+    websiteUrl2: "https://batam.go.id",
+    websiteLogo2: "",
+  });
 
   const loadData = async () => {
     try {
-      const [resTrx, resTagihan] = await Promise.all([
-        fetch("/api/transaksi"),
-        fetch("/api/tagihan?bulan=April 2026"),
+      const [resTrx, resTagihan, resPengaturan] = await Promise.all([
+        fetch("/api/transaksi", { cache: "no-store" }),
+        fetch("/api/tagihan?bulan=April 2026", { cache: "no-store" }),
+        fetch("/api/pengaturan", { cache: "no-store" }),
       ]);
 
       const dataTrx = await resTrx.json();
       const dataTagihan = await resTagihan.json();
+      const dataPengaturan = await resPengaturan.json();
 
       setData(dataTrx);
       if (dataTagihan.stats) {
         setTagihanStats(dataTagihan.stats);
+      }
+      if (dataPengaturan?.pengaturan) {
+        setLinksConfig(dataPengaturan.pengaturan);
       }
     } catch (e) {
       console.error(e);
@@ -142,91 +162,91 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* 4 Metric Cards matching Screenshot 5 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 4 Metric Cards (Responsive 2 cols on mobile, 4 on desktop) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Card 1: Saldo Kas */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden">
+        <div className="bg-white p-3.5 sm:p-5 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-start justify-between">
-            <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-              <Wallet className="w-5 h-5" />
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+              <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-              <TrendingUp className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 sm:px-2 py-0.5 rounded-full">
+              <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               <span>+12.5%</span>
             </span>
           </div>
-          <div className="mt-4">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+          <div className="mt-3 sm:mt-4">
+            <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">
               Saldo Kas Saat Ini
             </p>
-            <p className="text-xl font-black text-slate-900 mt-1">
+            <p className="text-base sm:text-xl font-black text-slate-900 mt-0.5 sm:mt-1 truncate">
               Rp {saldo.toLocaleString("id-ID")}
             </p>
-            <p className="text-[11px] text-emerald-600 mt-1 font-semibold">
+            <p className="text-[10px] sm:text-[11px] text-emerald-600 mt-0.5 font-semibold truncate">
               Sisa kas per Agustus 2026
             </p>
           </div>
         </div>
 
         {/* Card 2: Pemasukan */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden">
+        <div className="bg-white p-3.5 sm:p-5 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-start justify-between">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
-              <ArrowDownLeft className="w-5 h-5" />
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+              <ArrowDownLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-              <TrendingUp className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 sm:px-2 py-0.5 rounded-full">
+              <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               <span>+8.2%</span>
             </span>
           </div>
-          <div className="mt-4">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+          <div className="mt-3 sm:mt-4">
+            <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
               Pendapatan / Saldo (A)
             </p>
-            <p className="text-xl font-black text-slate-900 mt-1">
+            <p className="text-base sm:text-xl font-black text-slate-900 mt-0.5 sm:mt-1 truncate">
               Rp {pemasukan.toLocaleString("id-ID")}
             </p>
-            <p className="text-[11px] text-slate-400 mt-1 font-medium">
+            <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 font-medium">
               Periode Agustus 2026
             </p>
           </div>
         </div>
 
         {/* Card 3: Pengeluaran */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden">
+        <div className="bg-white p-3.5 sm:p-5 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-start justify-between">
-            <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
-              <ArrowUpRight className="w-5 h-5" />
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
+              <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="mt-4">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+          <div className="mt-3 sm:mt-4">
+            <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
               Pengeluaran (B)
             </p>
-            <p className="text-xl font-black text-slate-900 mt-1">
+            <p className="text-base sm:text-xl font-black text-slate-900 mt-0.5 sm:mt-1 truncate">
               Rp {pengeluaran.toLocaleString("id-ID")}
             </p>
-            <p className="text-[11px] text-slate-400 mt-1 font-medium">
+            <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 font-medium">
               Periode Agustus 2026
             </p>
           </div>
         </div>
 
         {/* Card 4: Tagihan Tertunda */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden">
+        <div className="bg-white p-3.5 sm:p-5 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-start justify-between">
-            <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600">
-              <FileClock className="w-5 h-5" />
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600">
+              <FileClock className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="mt-4">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+          <div className="mt-3 sm:mt-4">
+            <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
               Tagihan Tertunda
             </p>
-            <p className="text-xl font-black text-slate-900 mt-1">
+            <p className="text-base sm:text-xl font-black text-slate-900 mt-0.5 sm:mt-1 truncate">
               Rp {tagihanStats.totalTertunda.toLocaleString("id-ID")}
             </p>
-            <p className="text-[11px] text-rose-500 mt-1 font-bold">
+            <p className="text-[10px] sm:text-[11px] text-rose-500 mt-0.5 font-bold truncate">
               {tagihanStats.countBelumLunas} warga belum lunas
             </p>
           </div>
@@ -250,9 +270,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* SVG Cash Flow Graphic Chart matching Screenshot 5 */}
-          <div className="relative mt-6 pt-2">
-            <div className="h-56 w-full flex flex-col justify-between">
+          {/* SVG Cash Flow Graphic Chart (Responsive Scrollable on Mobile) */}
+          <div className="relative mt-4 pt-2 overflow-x-auto">
+            <div className="h-56 min-w-[500px] w-full flex flex-col justify-between">
               <svg viewBox="0 0 600 200" className="w-full h-full overflow-visible">
                 <defs>
                   <linearGradient id="pemasukanGrad" x1="0" y1="0" x2="0" y2="1">
@@ -284,7 +304,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Legend matching Screenshot 5 */}
+            {/* Legend */}
             <div className="flex items-center justify-center gap-6 mt-4 pt-3 border-t border-slate-100 text-xs font-bold">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
@@ -386,6 +406,129 @@ export default function DashboardPage() {
             <span>Lihat semua tagihan</span>
             <ChevronRight className="w-4 h-4" />
           </Link>
+        </div>
+      </div>
+
+      {/* Kolom Khusus Link: WhatsApp Aduan Warga, YouTube, dan Website A/B */}
+      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div>
+            <h2 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+              <Globe className="w-4 h-4 text-indigo-600" />
+              <span>Link Resmi & Layanan Digital Warga</span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Akses cepat pengaduan warga via WhatsApp, saluran video YouTube, dan portal website resmi
+            </p>
+          </div>
+
+          {user?.role !== "warga" && (
+            <Link
+              href="/pengaturan?tab=links"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 self-start sm:self-auto"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Edit Link & Logo</span>
+            </Link>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+          {/* 1. WhatsApp Aduan Warga */}
+          <a
+            href={`https://api.whatsapp.com/send?phone=${(linksConfig.waAduanWarga || "081234567890").replace(/[^0-9]/g, "").replace(/^0/, "62")}&text=Halo%20Pengurus%20RT%20002%20RW%20014,%20saya%20warga%20ingin%20menyampaikan%20aduan/aspirasi:%20`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 hover:bg-emerald-100/80 transition-all text-emerald-950 group"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <PhoneCall className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">Pengaduan</span>
+                <p className="font-black text-xs text-slate-900 truncate">WhatsApp Aduan</p>
+                <p className="text-[11px] text-emerald-700 font-mono truncate">{linksConfig.waAduanWarga || "081234567890"}</p>
+              </div>
+            </div>
+            <ExternalLink className="w-4 h-4 text-emerald-600 shrink-0 opacity-70 group-hover:opacity-100" />
+          </a>
+
+          {/* 2. YouTube RT 002 */}
+          <a
+            href={linksConfig.youtubeUrl || "https://www.youtube.com"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-rose-50/70 border border-rose-200/80 hover:bg-rose-100/80 transition-all text-rose-950 group"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm font-black text-sm">
+                ▶
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 block">Saluran Video</span>
+                <p className="font-black text-xs text-slate-900 truncate">YouTube RT 002</p>
+                <p className="text-[11px] text-rose-700 truncate">Dokumentasi & Siaran</p>
+              </div>
+            </div>
+            <ExternalLink className="w-4 h-4 text-rose-600 shrink-0 opacity-70 group-hover:opacity-100" />
+          </a>
+
+          {/* 3. Website A */}
+          <a
+            href={linksConfig.websiteUrl1 || "https://ciptaland.id"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-all text-slate-900 group"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
+                {linksConfig.websiteLogo1 ? (
+                  <img
+                    src={resolveMediaUrl(linksConfig.websiteLogo1)}
+                    alt="Logo Website A"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Globe className="w-5 h-5 text-indigo-600" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Website A</span>
+                <p className="font-black text-xs text-slate-900 truncate">{linksConfig.websiteName1 || "Portal Warga"}</p>
+                <p className="text-[11px] text-indigo-600 font-mono truncate">{(linksConfig.websiteUrl1 || "ciptaland.id").replace(/^https?:\/\//, "")}</p>
+              </div>
+            </div>
+            <ExternalLink className="w-4 h-4 text-slate-400 shrink-0 opacity-70 group-hover:opacity-100" />
+          </a>
+
+          {/* 4. Website B */}
+          <a
+            href={linksConfig.websiteUrl2 || "https://batam.go.id"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-all text-slate-900 group"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
+                {linksConfig.websiteLogo2 ? (
+                  <img
+                    src={resolveMediaUrl(linksConfig.websiteLogo2)}
+                    alt="Logo Website B"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Globe className="w-5 h-5 text-indigo-600" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Website B</span>
+                <p className="font-black text-xs text-slate-900 truncate">{linksConfig.websiteName2 || "Pemko Batam"}</p>
+                <p className="text-[11px] text-indigo-600 font-mono truncate">{(linksConfig.websiteUrl2 || "batam.go.id").replace(/^https?:\/\//, "")}</p>
+              </div>
+            </div>
+            <ExternalLink className="w-4 h-4 text-slate-400 shrink-0 opacity-70 group-hover:opacity-100" />
+          </a>
         </div>
       </div>
 
