@@ -258,10 +258,13 @@ dd{margin:0} dd.pembayar{font-size:17px;font-weight:700}
   const a = document.createElement("a");
   a.href = url;
   a.download = `Kwitansi-${k.kode}.html`;
+  a.rel = "noopener";
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  // IMPORTANT: delay the revoke so the browser has time to read the blob.
+  // Revoking immediately cancels the download in most browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
 async function shareKwitansi(k: Kwitansi, brand?: Brand) {
