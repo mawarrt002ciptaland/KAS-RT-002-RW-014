@@ -6,12 +6,15 @@ import { Search, Bell } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 
+import { Menu } from "lucide-react";
+
 interface HeaderProps {
   onOpenTransaction?: () => void;
   onOpenAddWarga?: () => void;
+  onOpenMobileMenu?: () => void;
 }
 
-export function Header({ onOpenTransaction, onOpenAddWarga }: HeaderProps) {
+export function Header({ onOpenTransaction, onOpenAddWarga, onOpenMobileMenu }: HeaderProps) {
   const pathname = usePathname();
   const { user } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -44,7 +47,7 @@ export function Header({ onOpenTransaction, onOpenAddWarga }: HeaderProps) {
     {
       id: 1,
       title: "Iuran Terverifikasi",
-      desc: "Bayu Sodik (M-02) membayar iuran April 2026 Rp 50.000 via Transfer",
+      desc: "Bayu Sudik (M-02) membayar iuran April 2026 Rp 50.000 via Transfer",
       time: "10 menit lalu",
       unread: true,
     },
@@ -65,11 +68,24 @@ export function Header({ onOpenTransaction, onOpenAddWarga }: HeaderProps) {
   ];
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200/80 px-6 flex items-center justify-between sticky top-0 z-20">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-        <span className="text-slate-400">Blok Mawar</span>
-        <span className="text-slate-300">/</span>
-        <span className="text-slate-900 font-bold tracking-tight text-sm">{getPageTitle()}</span>
+    <header className="h-16 bg-white border-b border-slate-200/80 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20">
+      <div className="flex items-center gap-3">
+        {/* Mobile Hamburger Button */}
+        <button
+          onClick={onOpenMobileMenu}
+          className="lg:hidden p-2 -ml-1 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-colors"
+          aria-label="Buka Menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-slate-500">
+          <span className="text-slate-400 hidden sm:inline">Blok Mawar</span>
+          <span className="text-slate-300 hidden sm:inline">/</span>
+          <span className="text-slate-900 font-bold tracking-tight text-xs sm:text-sm truncate max-w-[140px] sm:max-w-none">
+            {getPageTitle()}
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
