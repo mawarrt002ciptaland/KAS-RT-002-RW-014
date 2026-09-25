@@ -52,3 +52,17 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Database (contains user data — jangan di-push ke GitHub)
+db/*.db
+db/*.db-journal
+*.db
+*.db-journal
+
+# Uploaded files (logo, QRIS, foto, marketplace images)
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Agent context & temp
+/agent-ctx/
+/upload/
