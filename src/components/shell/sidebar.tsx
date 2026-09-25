@@ -1,14 +1,17 @@
 "use client";
 
 import { useAppStore } from "@/lib/store";
+import { useBrandStore } from "@/lib/brand-store";
 import { MENU_ITEMS, RT_INFO } from "@/lib/constants";
 import { Icon } from "@/components/shared/icon";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { X, Home, Sparkles } from "lucide-react";
+import Image from "next/image";
 
 export function Sidebar() {
   const { activeView, setActiveView, role, setRole } = useAppStore();
+  const brand = useBrandStore();
   const utama = MENU_ITEMS.filter((m) => m.group === "utama");
   const org = MENU_ITEMS.filter((m) => m.group === "organisasi");
 
@@ -16,12 +19,16 @@ export function Sidebar() {
     <aside className="hidden h-dvh w-[260px] shrink-0 flex-col border-r bg-sidebar lg:flex">
       {/* Brand */}
       <div className="flex items-center gap-3 border-b px-4 py-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-          <Home className="h-6 w-6" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary text-primary-foreground shadow-sm">
+          {brand.logoUrl ? (
+            <Image src={brand.logoUrl} alt="Logo RT 002" width={44} height={44} className="h-full w-full object-cover" unoptimized />
+          ) : (
+            <Home className="h-6 w-6" />
+          )}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold leading-tight">Sistem Informasi RT 002</p>
-          <p className="truncate text-xs text-muted-foreground">Blok Mawar • Ciptaland</p>
+          <p className="truncate text-sm font-bold leading-tight">Sistem Informasi {brand.namaRT || "RT 002"}</p>
+          <p className="truncate text-xs text-muted-foreground">Blok {brand.blok} • {brand.perumahan}</p>
         </div>
       </div>
 
@@ -80,6 +87,7 @@ function NavBtn({
 /** Mobile drawer - reuses the same menu */
 export function MobileDrawer() {
   const { drawerOpen, setDrawerOpen, activeView, setActiveView, role, setRole } = useAppStore();
+  const brand = useBrandStore();
   const utama = MENU_ITEMS.filter((m) => m.group === "utama");
   const org = MENU_ITEMS.filter((m) => m.group === "organisasi");
 
@@ -104,12 +112,16 @@ export function MobileDrawer() {
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-4 pt-safe">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Home className="h-5 w-5" />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary text-primary-foreground">
+              {brand.logoUrl ? (
+                <Image src={brand.logoUrl} alt="Logo RT 002" width={40} height={40} className="h-full w-full object-cover" unoptimized />
+              ) : (
+                <Home className="h-5 w-5" />
+              )}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold">RT 002 Mawar</p>
-              <p className="truncate text-xs text-muted-foreground">Ciptaland Batam</p>
+              <p className="truncate text-sm font-bold">{brand.namaRT || "RT 002 Mawar"}</p>
+              <p className="truncate text-xs text-muted-foreground">{brand.perumahan} {brand.kota}</p>
             </div>
           </div>
           <button

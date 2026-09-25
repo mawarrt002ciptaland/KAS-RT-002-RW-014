@@ -7,12 +7,31 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "0", 10);
-    const items = await db.kwitansi.findMany({
-      include: { transaksi: true, tagihan: { include: { warga: true } }, warga: true },
-      orderBy: { tanggal: "desc" },
-      ...(limit ? { take: limit } : {}),
+    const [items, settings] = await Promise.all([
+      db.kwitansi.findMany({
+        include: { transaksi: true, tagihan: { include: { warga: true } }, warga: true },
+        orderBy: { tanggal: "desc" },
+        ...(limit ? { take: limit } : {}),
+      }),
+      db.pengaturan.findMany({
+        where: { key: { in: ["qris_image", "qris_url", "nama_bendahara", "nama_ketua", "nama_rt", "bank_nama", "bank_rekening", "bank_pemilik"] } },
+      }),
+    ]);
+    const brand: Record<string, string> = {};
+    for (const s of settings) brand[s.key] = s.value;
+    return NextResponse.json({
+      items,
+      brand: {
+        qrisImage: brand.qris_image || "",
+        qrisUrl: brand.qris_url || "",
+        namaBendahara: brand.nama_bendahara || "Endang Marliana",
+        namaKetua: brand.nama_ketua || "H. Sutrisno",
+        namaRT: brand.nama_rt || "RT 002 Blok Mawar",
+        bankNama: brand.bank_nama || "",
+        bankRekening: brand.bank_rekening || "",
+        bankPemilik: brand.bank_pemilik || "",
+      },
     });
-    return NextResponse.json({ items });
   } catch (e) {
     console.error("[api/kwitansi GET]", e);
     return NextResponse.json({ error: "Gagal memuat kwitansi" }, { status: 500 });

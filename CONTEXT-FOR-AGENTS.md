@@ -94,3 +94,48 @@ All exist: button, input, textarea, select, label, badge, card, dialog, sheet, d
 - `src/components/views/whatsapp-view.tsx` → `export function WhatsappView()`
 - `src/components/views/tautan-view.tsx` → `export function TautanView()`
 - `src/components/views/pengaturan-view.tsx` → `export function PengaturanView()`
+
+---
+
+## UPDATE ROUND 2 — New APIs & Patterns (read this section too)
+
+### New APIs added
+- `POST /api/upload` — FormData field `file` (image png/jpg/webp/gif/svg, max 4MB) → `{ url: "/uploads/xxx.png", filename }`. Use to upload logo/QRIS images.
+- `GET /api/pengaturan/logo` → `{ logoUrl, namaRT, rw, perumahan, kota, blok }` (brand settings for header)
+- `GET /api/auth/users` → `{ items: User[], count }` where User = `{ id, email, nama, role, wargaId, telepon, foto, status, lastLogin, createdAt }`
+- `POST /api/auth/users` body `{ email, password, nama, role, telepon?, wargaId? }` → created user (password hashed sha256 server-side). Roles: "admin"|"ketua"|"bendahara"|"pengurus"|"warga"
+- `PATCH /api/auth/users/[id]` body `{ nama?, role?, telepon?, status?, wargaId?, foto?, password? }` (password optional, hashed if provided)
+- `DELETE /api/auth/users/[id]`
+- `POST /api/auth/login` body `{ email, password }` → `{ id, email, nama, role, wargaId, telepon, foto }` or 401
+- `GET /api/warga/[id]/anggota` → `{ items: AnggotaKK[], count }` where AnggotaKK = `{ id, wargaId, nama, nik, jenisKelamin, hubungan, tanggalLahir, createdAt }`
+- `POST /api/warga/[id]/anggota` body `{ nama, nik?, jenisKelamin?, hubungan?, tanggalLahir? }` → created
+- `DELETE /api/warga/[id]/anggota/[anggotaId]`
+- `GET /api/kwitansi` now returns `{ items: Kwitansi[], brand: { qrisImage, qrisUrl, namaBendahara, namaKetua, namaRT, bankNama, bankRekening, bankPemilik } }`
+- `GET /api/warga` now includes `nik` and `noKK` fields per warga
+- `POST /api/warga` now accepts `nik` and `noKK`
+- `PATCH /api/pengaturan` accepts any key-value pairs (including `logo_url`, `qris_image`, `nama_bendahara`, `nama_ketua`, `ttd_bendahara`)
+
+### New hooks / stores
+- `import { useMounted } from "@/hooks/use-mounted"` — returns true after client mount. USE for any `new Date()` in render to avoid hydration mismatch: `{mounted ? formatTanggalID(new Date()) : "\u00A0"}`
+- `import { useBrandStore } from "@/lib/brand-store"` — `{ logoUrl, namaRT, rw, perumahan, kota, blok, loaded, setBrand, load }`. Call `setBrand({ logoUrl: newUrl })` after uploading a logo to update the header INSTANTLY without reload.
+
+### Image upload helper pattern (for logo/QRIS)
+```tsx
+async function uploadImage(file: File): Promise<string | null> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch("/api/upload", { method: "POST", body: fd });
+  const j = await res.json();
+  if (!res.ok) { toast.error(j.error); return null; }
+  return j.url; // "/uploads/xxx.png"
+}
+```
+For "by URL" option: just use the URL string the user pasted (validate it starts with http).
+
+### Hydration rule (CRITICAL)
+NEVER call `new Date()`, `Date.now()`, or `Math.random()` directly in a render body. Always gate with `useMounted()`. The app crashed on mobile because of this. Pattern:
+```tsx
+const mounted = useMounted();
+// in JSX:
+{mounted ? formatTanggalID(new Date()) : "\u00A0"}
+```

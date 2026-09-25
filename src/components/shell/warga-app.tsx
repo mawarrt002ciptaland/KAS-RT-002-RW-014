@@ -5,6 +5,7 @@ import { RT_INFO } from "@/lib/constants";
 import { Icon } from "@/components/shared/icon";
 import { openWhatsApp } from "@/components/shared";
 import { useFetch } from "@/hooks/use-fetch";
+import { useMounted } from "@/hooks/use-mounted";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { Home, ReceiptText, Megaphone, MessageSquareWarning, User, Menu, Bell, Sparkles, Wallet, MapPin, Clock, Calendar } from "lucide-react";
@@ -32,6 +33,7 @@ interface WargaData {
 export function WargaApp() {
   const { wargaTab, setWargaTab, setRole } = useAppStore();
   const { data, loading, error, refetch } = useFetch<WargaData>("/api/warga-dashboard");
+  const mounted = useMounted();
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -108,6 +110,7 @@ function BottomTab({ tab, icon, label, badge }: { tab: "home" | "tagihan" | "pen
 }
 
 function WargaHome({ data, loading, error, refetch }: { data: WargaData | null; loading: boolean; error: string | null; refetch: () => void }) {
+  const mounted = useMounted();
   if (loading) return <div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><CardSkeleton className="h-28" /><CardSkeleton className="h-28" /></div>;
   if (error || !data) return <ErrorState message={error || undefined} onRetry={refetch} />;
 
@@ -117,7 +120,7 @@ function WargaHome({ data, loading, error, refetch }: { data: WargaData | null; 
       <div className="rounded-xl bg-gradient-to-br from-primary to-primary/70 p-4 text-primary-foreground">
         <p className="text-xs text-primary-foreground/80">Halo, Warga RT 002 👋</p>
         <h2 className="text-fluid-h3 mt-0.5 font-bold">Selamat datang di Sistem RT 002</h2>
-        <p className="mt-1 text-xs text-primary-foreground/80">{formatTanggalLengkapID(new Date())}</p>
+        <p className="mt-1 text-xs text-primary-foreground/80">{mounted ? formatTanggalLengkapID(new Date()) : "\u00A0"}</p>
       </div>
 
       {/* My bills summary */}

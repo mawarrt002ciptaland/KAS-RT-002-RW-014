@@ -25,38 +25,42 @@ async function main() {
   await db.trafikWebsite.deleteMany();
   await db.tautan.deleteMany();
   await db.pengurus.deleteMany();
+  await db.anggotaKK.deleteMany();
   await db.warga.deleteMany();
+  await db.user.deleteMany();
   await db.pengaturan.deleteMany();
 
   // ===== PENGURUS / WARGA =====
   const wargaData = [
-    { nama: "Bapak H. Sutrisno", noRumah: "Mawar 01", role: "pengurus", jabatan: "Ketua RT 002", telepon: "081300000001", pekerjaan: "Wiraswasta", jk: "L" },
-    { nama: "Ibu Endang Marliana", noRumah: "Mawar 02", role: "pengurus", jabatan: "Bendahara RT 002", telepon: "081300000002", pekerjaan: "Ibu Rumah Tangga", jk: "P" },
-    { nama: "Bapak Agus Santoso", noRumah: "Mawar 03", role: "pengurus", jabatan: "Sekretaris RT 002", telepon: "081300000003", pekerjaan: "Karyawan Swasta", jk: "L" },
-    { nama: "Bapak Joko Widodo", noRumah: "Mawar 04", role: "pengurus", jabatan: "Koordinator Keamanan", telepon: "081300000004", pekerjaan: "Satpam", jk: "L" },
-    { nama: "Ibu Siti Aminah", noRumah: "Mawar 05", role: "pengurus", jabatan: "Koordinator Kebersihan", telepon: "081300000005", pekerjaan: "Ibu Rumah Tangga", jk: "P" },
-    { nama: "Bapak Bayu J Putra", noRumah: "Mawar 58", role: "warga", telepon: "081200000055", pekerjaan: "Karyawan Swasta", jk: "L" },
-    { nama: "Ibu Dewi Lestari", noRumah: "Mawar 06", role: "warga", telepon: "081300000006", pekerjaan: "Guru", jk: "P" },
-    { nama: "Bapak Rudi Hartono", noRumah: "Mawar 07", role: "warga", telepon: "081300000007", pekerjaan: "PNS", jk: "L" },
-    { nama: "Ibu Wati Suryani", noRumah: "Mawar 08", role: "warga", telepon: "081300000008", pekerjaan: "Pedagang", jk: "P" },
-    { nama: "Bapak Andi Pratama", noRumah: "Mawar 09", role: "warga", telepon: "081300000009", pekerjaan: "Teknisi", jk: "L" },
-    { nama: "Ibu Rina Marlina", noRumah: "Mawar 10", role: "warga", telepon: "081300000010", pekerjaan: "Ibu Rumah Tangga", jk: "P" },
-    { nama: "Bapak Eko Nugroho", noRumah: "Mawar 11", role: "warga", telepon: "081300000011", pekerjaan: "Wiraswasta", jk: "L" },
-    { nama: "Ibu Lia Amalia", noRumah: "Mawar 12", role: "warga", telepon: "081300000012", pekerjaan: "Perawat", jk: "P" },
-    { nama: "Bapak Fajar Ramadhan", noRumah: "Mawar 13", role: "warga", telepon: "081300000013", pekerjaan: "Karyawan Swasta", jk: "L" },
-    { nama: "Ibu Tika Permata", noRumah: "Mawar 14", role: "warga", telepon: "081300000014", pekerjaan: "Guru", jk: "P" },
-    { nama: "Bapak Hendra Gunawan", noRumah: "Mawar 15", role: "warga", telepon: "081300000015", pekerjaan: "PNS", jk: "L" },
-    { nama: "Ibu Nisa Anjani", noRumah: "Mawar 16", role: "warga", telepon: "081300000016", pekerjaan: "Karyawan Swasta", jk: "P" },
-    { nama: "Bapak Rizki Ramadhan", noRumah: "Mawar 17", role: "warga", telepon: "081300000017", pekerjaan: "Teknisi", jk: "L" },
-    { nama: "Ibu Maya Sari", noRumah: "Mawar 18", role: "warga", telepon: "081300000018", pekerjaan: "Wiraswasta", jk: "P" },
-    { nama: "Bapak Dani Kurniawan", noRumah: "Mawar 19", role: "warga", telepon: "081300000019", pekerjaan: "Karyawan Swasta", jk: "L" },
+    { nama: "Bapak H. Sutrisno", nik: "7171040101800001", noKK: "7171040101180001", noRumah: "Mawar 01", role: "pengurus", jabatan: "Ketua RT 002", telepon: "081300000001", pekerjaan: "Wiraswasta", jk: "L", keluarga: ["Hj. Sutrisno (Istri)", "Ahmad Sutrisno (Anak)"] },
+    { nama: "Ibu Endang Marliana", nik: "7171040202820002", noKK: "7171040101180001", noRumah: "Mawar 02", role: "pengurus", jabatan: "Bendahara RT 002", telepon: "081300000002", pekerjaan: "Ibu Rumah Tangga", jk: "P", keluarga: ["Bambang M (Suami)"] },
+    { nama: "Bapak Agus Santoso", nik: "7171040303850003", noKK: "7171040202180002", noRumah: "Mawar 03", role: "pengurus", jabatan: "Sekretaris RT 002", telepon: "081300000003", pekerjaan: "Karyawan Swasta", jk: "L", keluarga: ["Rina Santoso (Istri)", "Dewi Santoso (Anak)", "Raka Santoso (Anak)"] },
+    { nama: "Bapak Joko Widodo", nik: "7171040404790004", noKK: "7171040303180003", noRumah: "Mawar 04", role: "pengurus", jabatan: "Koordinator Keamanan", telepon: "081300000004", pekerjaan: "Satpam", jk: "L", keluarga: [] },
+    { nama: "Ibu Siti Aminah", nik: "7171040505880005", noKK: "7171040404180004", noRumah: "Mawar 05", role: "pengurus", jabatan: "Koordinator Kebersihan", telepon: "081300000005", pekerjaan: "Ibu Rumah Tangga", jk: "P", keluarga: ["Amin S (Suami)", "Budi A (Anak)"] },
+    { nama: "Bapak Bayu J Putra", nik: "7171040606900006", noKK: "7171040505180005", noRumah: "Mawar 58", role: "warga", telepon: "081200000055", pekerjaan: "Karyawan Swasta", jk: "L", keluarga: ["Sari Putri (Istri)", "Naya Putra (Anak)", "Nadi Putra (Anak)"] },
+    { nama: "Ibu Dewi Lestari", nik: "7171040707870007", noKK: "7171040606180006", noRumah: "Mawar 06", role: "warga", telepon: "081300000006", pekerjaan: "Guru", jk: "P", keluarga: ["Hendra L (Suami)"] },
+    { nama: "Bapak Rudi Hartono", nik: "7171040808820008", noKK: "7171040707180007", noRumah: "Mawar 07", role: "warga", telepon: "081300000007", pekerjaan: "PNS", jk: "L", keluarga: ["Maya H (Istri)", "Andi H (Anak)", "Budi H (Anak)", "Citra H (Anak)"] },
+    { nama: "Ibu Wati Suryani", nik: "7171040909910009", noKK: "7171040808180008", noRumah: "Mawar 08", role: "warga", telepon: "081300000008", pekerjaan: "Pedagang", jk: "P", keluarga: ["Tono S (Suami)"] },
+    { nama: "Bapak Andi Pratama", nik: "7171041010860010", noKK: "7171040909180009", noRumah: "Mawar 09", role: "warga", telepon: "081300000009", pekerjaan: "Teknisi", jk: "L", keluarga: [] },
+    { nama: "Ibu Rina Marlina", nik: "7171041111920011", noKK: "7171041010180010", noRumah: "Mawar 10", role: "warga", telepon: "081300000010", pekerjaan: "Ibu Rumah Tangga", jk: "P", keluarga: ["Eka M (Suami)", "Lala M (Anak)"] },
+    { nama: "Bapak Eko Nugroho", nik: "7171041212830012", noKK: "7171041111180011", noRumah: "Mawar 11", role: "warga", telepon: "081300000011", pekerjaan: "Wiraswasta", jk: "L", keluarga: ["Rina N (Istri)", "Boni N (Anak)"] },
+    { nama: "Ibu Lia Amalia", nik: "7171041313890013", noKK: "7171041212180012", noRumah: "Mawar 12", role: "warga", telepon: "081300000012", pekerjaan: "Perawat", jk: "P", keluarga: ["Fajar A (Suami)", "Tiara A (Anak)", "Rafi A (Anak)"] },
+    { nama: "Bapak Fajar Ramadhan", nik: "7171041414900014", noKK: "7171041313180013", noRumah: "Mawar 13", role: "warga", telepon: "081300000013", pekerjaan: "Karyawan Swasta", jk: "L", keluarga: [] },
+    { nama: "Ibu Tika Permata", nik: "7171041515880015", noKK: "7171041414180014", noRumah: "Mawar 14", role: "warga", telepon: "081300000014", pekerjaan: "Guru", jk: "P", keluarga: ["Hendra P (Suami)", "Aldi P (Anak)"] },
+    { nama: "Bapak Hendra Gunawan", nik: "7171041616850016", noKK: "7171041515180015", noRumah: "Mawar 15", role: "warga", telepon: "081300000015", pekerjaan: "PNS", jk: "L", keluarga: ["Rina G (Istri)", "Bella G (Anak)", "Bagas G (Anak)"] },
+    { nama: "Ibu Nisa Anjani", nik: "7171041717920017", noKK: "7171041616180016", noRumah: "Mawar 16", role: "warga", telepon: "081300000016", pekerjaan: "Karyawan Swasta", jk: "P", keluarga: [] },
+    { nama: "Bapak Rizki Ramadhan", nik: "7171041818870018", noKK: "7171041717180017", noRumah: "Mawar 17", role: "warga", telepon: "081300000017", pekerjaan: "Teknisi", jk: "L", keluarga: ["Lia R (Istri)"] },
+    { nama: "Ibu Maya Sari", nik: "7171041919900019", noKK: "7171041818180018", noRumah: "Mawar 18", role: "warga", telepon: "081300000018", pekerjaan: "Wiraswasta", jk: "P", keluarga: ["Dedi S (Suami)", "Aldo S (Anak)", "Sasa S (Anak)"] },
+    { nama: "Bapak Dani Kurniawan", nik: "7171042020850020", noKK: "7171041919180019", noRumah: "Mawar 19", role: "warga", telepon: "081300000019", pekerjaan: "Karyawan Swasta", jk: "L", keluarga: ["Wati K (Istri)", "Rani K (Anak)"] },
   ];
 
-  const warga = [];
+  const warga: { id: string; nama: string; noRumah: string; noKK: string | null; nik: string | null }[] = [];
   for (const w of wargaData) {
     const created = await db.warga.create({
       data: {
         nama: w.nama,
+        nik: w.nik ?? null,
+        noKK: w.noKK ?? null,
         noRumah: w.noRumah,
         blok: "Mawar",
         telepon: w.telepon,
@@ -70,6 +74,17 @@ async function main() {
         tanggalBergabung: new Date(2024, 0, 1),
       },
     });
+    // Add family members as AnggotaKK
+    for (const anggota of (w.keluarga || [])) {
+      await db.anggotaKK.create({
+        data: {
+          wargaId: created.id,
+          nama: anggota,
+          jenisKelamin: anggota.startsWith("Ibu") || anggota.match(/\(Istri\)|\(Anak\).*[ai]$/i) && Math.random() > 0.5 ? "P" : "L",
+          hubungan: anggota.includes("(Istri)") ? "Istri" : anggota.includes("(Anak)") ? "Anak" : "Anggota",
+        },
+      });
+    }
     warga.push(created);
   }
 
@@ -85,6 +100,23 @@ async function main() {
   for (const p of pengurusData) {
     await db.pengurus.create({ data: { ...p, periode: "2024-2027" } });
   }
+
+  // ===== USER (login accounts) =====
+  // Demo password hash (sha256 of "rt002admin" - replace with proper hashing in production)
+  const { createHash } = await import("crypto");
+  const hash = (s: string) => createHash("sha256").update(s).digest("hex");
+  const userData = [
+    { email: "admin@rt002mawar.id", password: hash("admin123"), nama: "Administrator RT 002", role: "admin", telepon: "081234567890" },
+    { email: "ketua@rt002mawar.id", password: hash("ketua123"), nama: "H. Sutrisno", role: "ketua", telepon: "081300000001" },
+    { email: "bendahara@rt002mawar.id", password: hash("bendahara123"), nama: "Endang Marliana", role: "bendahara", telepon: "081300000002" },
+    { email: "sekretaris@rt002mawar.id", password: hash("sekret123"), nama: "Agus Santoso", role: "pengurus", telepon: "081300000003" },
+    { email: "keamanan@rt002mawar.id", password: hash("aman123"), nama: "Joko Widodo", role: "pengurus", telepon: "081300000004" },
+    { email: "warga@rt002mawar.id", password: hash("warga123"), nama: "Bayu J Putra", role: "warga", telepon: "081200000055" },
+  ];
+  for (const u of userData) {
+    await db.user.create({ data: u });
+  }
+  console.log(`Created ${userData.length} user accounts`);
 
   // ===== TRANSAKSI =====
   // Realistic 2026 transactions based on prompt figures
@@ -485,6 +517,11 @@ async function main() {
     { key: "bank_rekening", value: "1234-5678-9012-3", kategori: "keuangan" },
     { key: "bank_pemilik", value: "Endang Marliana", kategori: "keuangan" },
     { key: "qris_url", value: "https://qris.id/rt002mawar", kategori: "keuangan" },
+    { key: "qris_image", value: "", kategori: "keuangan" },
+    { key: "logo_url", value: "", kategori: "umum" },
+    { key: "nama_ketua", value: "H. Sutrisno", kategori: "umum" },
+    { key: "nama_bendahara", value: "Endang Marliana", kategori: "umum" },
+    { key: "ttd_bendahara", value: "", kategori: "umum" },
   ];
   for (const s of settings) {
     await db.pengaturan.create({ data: { key: s.key, value: s.value, kategori: s.kategori } });

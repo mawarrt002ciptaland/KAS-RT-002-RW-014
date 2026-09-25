@@ -1,14 +1,17 @@
 "use client";
 
 import { useAppStore } from "@/lib/store";
+import { useBrandStore } from "@/lib/brand-store";
 import { MENU_LABEL } from "@/lib/constants";
 import { Icon } from "@/components/shared/icon";
 import { useTheme } from "next-themes";
 import { Menu, Search, Bell, Plus, ChevronDown, User } from "lucide-react";
 import { useEffect } from "react";
+import Image from "next/image";
 
 export function TopHeader() {
   const { activeView, setDrawerOpen, setSearchOpen, setNotifOpen, setQuickOpen } = useAppStore();
+  const brand = useBrandStore();
   const { theme, setTheme } = useTheme();
 
   // Escape closes search
@@ -36,8 +39,12 @@ export function TopHeader() {
 
         {/* Logo compact (mobile) */}
         <div className="flex items-center gap-2 lg:hidden">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <span className="text-xs font-bold">RT</span>
+          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-primary text-primary-foreground">
+            {brand.logoUrl ? (
+              <Image src={brand.logoUrl} alt="Logo RT 002" width={32} height={32} className="h-full w-full object-cover" unoptimized />
+            ) : (
+              <span className="text-xs font-bold">RT</span>
+            )}
           </div>
         </div>
 

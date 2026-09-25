@@ -37,6 +37,36 @@ model Warga {
   pengaduan      Pengaduan[]
   kwitansi       Kwitansi[]
   transaksi      Transaksi[]
+  anggotaKK      AnggotaKK[]
+}
+
+// ============ ANGGOTA KK (Family members within a Kartu Keluarga) ============
+model AnggotaKK {
+  id          String    @id @default(cuid())
+  wargaId     String    // warga (kepala KK) this anggota belongs to
+  warga       Warga     @relation(fields: [wargaId], references: [id], onDelete: Cascade)
+  nama        String
+  nik         String?
+  jenisKelamin String   @default("L") // L / P
+  hubungan    String    @default("Anggota") // Kepala Keluarga / Istri / Anak / FAMILI LAIN
+  tanggalLahir DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+// ============ USER (Auth / login accounts) ============
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  password   String   // stored hashed (sha256 demo) — production use bcrypt/argon2
+  nama       String
+  role       String   @default("warga") // admin / ketua / bendahara / pengurus / warga
+  wargaId    String?  // optional link to a Warga record
+  telepon    String?
+  foto       String?
+  status     String   @default("aktif") // aktif / nonaktif
+  lastLogin  DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 // ============ TRANSAKSI (Income / Expense) ============

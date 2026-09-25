@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { nama, noRumah, telepon, pekerjaan, jenisKelamin, role, jabatan, alamat, blok } = body;
+    const { nama, noRumah, telepon, pekerjaan, jenisKelamin, role, jabatan, alamat, blok, nik, noKK } = body;
     if (!nama || !noRumah) return NextResponse.json({ error: "Nama & no rumah wajib diisi" }, { status: 400 });
     const item = await db.warga.create({
       data: {
@@ -47,6 +47,8 @@ export async function POST(req: NextRequest) {
         role: role || "warga",
         jabatan: jabatan || null,
         alamat: alamat || `${noRumah}, Blok Mawar, Ciptaland, Batam`,
+        nik: nik || null,
+        noKK: noKK || null,
       },
     });
     return NextResponse.json(item, { status: 201 });

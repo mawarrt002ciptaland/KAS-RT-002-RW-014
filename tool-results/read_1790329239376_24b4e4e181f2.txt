@@ -1,0 +1,752 @@
+     1→"use client";
+     2→
+     3→import { useMemo, useState } from "react";
+     4→import { useFetch, postJSON, deleteJSON } from "@/hooks/use-fetch";
+     5→import { useIsMobile } from "@/hooks/use-mobile";
+     6→import { useMounted } from "@/hooks/use-mounted";
+     7→import { KATEGORI_PEMASUKAN, KATEGORI_PENGELUARAN } from "@/lib/constants";
+     8→import {
+     9→  formatRupiah,
+    10→  formatTanggalID,
+    11→  formatTanggalLengkapID,
+    12→  toISODate,
+    13→  parseRupiahInput,
+    14→  toThousandInput,
+    15→  relativeTime,
+    16→  BULAN_ID,
+    17→} from "@/lib/format";
+    18→import {
+    19→  PageHeader,
+    20→  StatCard,
+    21→  SectionTitle,
+    22→  EmptyState,
+    23→  ErrorState,
+    24→  CardSkeleton,
+    25→  TrendBadge,
+    26→  RupiahText,
+    27→} from "@/components/shared";
+    28→import {
+    29→  Dialog,
+    30→  DialogContent,
+    31→  DialogDescription,
+    32→  DialogFooter,
+    33→  DialogHeader,
+    34→  DialogTitle,
+    35→} from "@/components/ui/dialog";
+    36→import {
+    37→  AlertDialog,
+    38→  AlertDialogAction,
+    39→  AlertDialogCancel,
+    40→  AlertDialogContent,
+    41→  AlertDialogDescription,
+    42→  AlertDialogFooter,
+    43→  AlertDialogHeader,
+    44→  AlertDialogTitle,
+    45→} from "@/components/ui/alert-dialog";
+    46→import { Button } from "@/components/ui/button";
+    47→import { Input } from "@/components/ui/input";
+    48→import { Label } from "@/components/ui/label";
+    49→import {
+    50→  Select,
+    51→  SelectContent,
+    52→  SelectItem,
+    53→  SelectTrigger,
+    54→  SelectValue,
+    55→} from "@/components/ui/select";
+    56→import {
+    57→  Table,
+    58→  TableBody,
+    59→  TableCell,
+    60→  TableHead,
+    61→  TableHeader,
+    62→  TableRow,
+    63→} from "@/components/ui/table";
+    64→import { Badge } from "@/components/ui/badge";
+    65→import { toast } from "sonner";
+    66→import {
+    67→  TrendingUp,
+    68→  TrendingDown,
+    69→  Plus,
+    70→  Search,
+    71→  Filter,
+    72→  Eye,
+    73→  Trash2,
+    74→  Printer,
+    75→  Camera,
+    76→  X,
+    77→  Calendar,
+    78→  ChevronDown,
+    79→  ChevronRight,
+    80→  Wallet,
+    81→  Hash,
+    82→  Receipt,
+    83→} from "lucide-react";
+    84→
+    85→type Jenis = "pemasukan" | "pengeluaran";
+    86→
+    87→interface Transaksi {
+    88→  id: string;
+    89→  kode: string;
+    90→  jenis: Jenis;
+    91→  tanggal: string;
+    92→  kategori: string;
+    93→  keterangan: string;
+    94→  nominal: number;
+    95→  penerima?: string | null;
+    96→  sumber?: string | null;
+    97→  metode: string;
+    98→  buktiUrl?: string | null;
+    99→  status: string;
+   100→  wargaId?: string | null;
+   101→  createdAt: string;
+   102→}
+   103→
+   104→interface ListResponse {
+   105→  items: Transaksi[];
+   106→  total: number;
+   107→  count: number;
+   108→}
+   109→
+   110→const METODE_LIST = ["Tunai", "Transfer", "QRIS"];
+   111→
+   112→interface MonthGroup {
+   113→  monthIdx: number;
+   114→  monthName: string;
+   115→  items: Transaksi[];
+   116→  total: number;
+   117→}
+   118→
+   119→/** Group transaksi by month for a given year (ascending Jan→Des, only months with items). */
+   120→function groupByMonth(items: Transaksi[], year: number): MonthGroup[] {
+   121→  const groups: MonthGroup[] = [];
+   122→  for (let i = 0; i < 12; i++) {
+   123→    groups.push({ monthIdx: i, monthName: BULAN_ID[i], items: [], total: 0 });
+   124→  }
+   125→  for (const t of items) {
+   126→    const d = new Date(t.tanggal);
+   127→    if (Number.isNaN(d.getTime())) continue;
+   128→    if (d.getFullYear() !== year) continue;
+   129→    groups[d.getMonth()].items.push(t);
+   130→    groups[d.getMonth()].total += t.nominal || 0;
+   131→  }
+   132→  // Sort items within each month ascending by date for stable display
+   133→  for (const g of groups) {
+   134→    g.items.sort((a, b) => +new Date(a.tanggal) - +new Date(b.tanggal));
+   135→  }
+   136→  return groups.filter((g) => g.items.length > 0);
+   137→}
+   138→
+   139→interface RowProps {
+   140→  items: Transaksi[];
+   141→  isPemasukan: boolean;
+   142→  nominalColor: string;
+   143→  sign: string;
+   144→  onDetail: (t: Transaksi) => void;
+   145→  onDelete: (t: Transaksi) => void;
+   146→}
+   147→
+   148→/** ====== BASE VIEW ====== */
+   149→function TransaksiViewBase({ jenis }: { jenis: Jenis }) {
+   150→  const isPemasukan = jenis === "pemasukan";
+   151→  const isMobile = useIsMobile();
+   152→  const mounted = useMounted();
+   153→  const [q, setQ] = useState("");
+   154→  const [kategori, setKategori] = useState<string>("all");
+   155→  // Lazy init: server-safe 2026, client uses current year (no setState-in-effect).
+   156→  const [year, setYear] = useState<number>(() =>
+   157→    typeof window !== "undefined" ? new Date().getFullYear() : 2026,
+   158→  );
+   159→  const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
+   160→  const [createOpen, setCreateOpen] = useState(false);
+   161→  const [detailItem, setDetailItem] = useState<Transaksi | null>(null);
+   162→  const [deleteTarget, setDeleteTarget] = useState<Transaksi | null>(null);
+   163→  const [deleting, setDeleting] = useState(false);
+   164→
+   165→  const kategoriList = isPemasukan ? KATEGORI_PEMASUKAN : KATEGORI_PENGELUARAN;
+   166→  const title = isPemasukan ? "Pemasukan" : "Pengeluaran";
+   167→  const Icon = isPemasukan ? TrendingUp : TrendingDown;
+   168→  const tone = isPemasukan ? ("income" as const) : ("expense" as const);
+   169→  const nominalColor = isPemasukan ? "text-success" : "text-destructive";
+   170→  const sign = isPemasukan ? "+" : "−";
+   171→
+   172→  const queryString = useMemo(() => {
+   173→    const p = new URLSearchParams({ jenis });
+   174→    if (kategori && kategori !== "all") p.set("kategori", kategori);
+   175→    if (q.trim()) p.set("q", q.trim());
+   176→    p.set("limit", "200");
+   177→    return `?${p.toString()}`;
+   178→  }, [jenis, kategori, q]);
+   179→
+   180→  const { data, loading, error, refetch } = useFetch<ListResponse>(
+   181→    `/api/transaksi${queryString}`,
+   182→  );
+   183→  const items = data?.items ?? [];
+   184→  const total = data?.total ?? 0;
+   185→  const count = data?.count ?? 0;
+   186→
+   187→  // Year options: union of data years + selected year + (after mount) current year.
+   188→  const yearOptions = useMemo(() => {
+   189→    const set = new Set<number>([year]);
+   190→    if (mounted) set.add(new Date().getFullYear());
+   191→    for (const t of items) {
+   192→      const y = new Date(t.tanggal).getFullYear();
+   193→      if (!Number.isNaN(y)) set.add(y);
+   194→    }
+   195→    return Array.from(set).sort((a, b) => b - a);
+   196→  }, [items, mounted, year]);
+   197→
+   198→  const monthGroups = useMemo(() => groupByMonth(items, year), [items, year]);
+   199→  const yearTotal = useMemo(
+   200→    () => monthGroups.reduce((s, g) => s + g.total, 0),
+   201→    [monthGroups],
+   202→  );
+   203→  const yearCount = useMemo(
+   204→    () => monthGroups.reduce((s, g) => s + g.items.length, 0),
+   205→    [monthGroups],
+   206→  );
+   207→
+   208→  const bulanIni = useMemo(() => {
+   209→    const now = new Date();
+   210→    const y = now.getFullYear();
+   211→    const m = now.getMonth();
+   212→    return items
+   213→      .filter((t) => {
+   214→        const d = new Date(t.tanggal);
+   215→        return d.getFullYear() === y && d.getMonth() === m;
+   216→      })
+   217→      .reduce((s, t) => s + (t.nominal || 0), 0);
+   218→  }, [items]);
+   219→  const rataRata = count > 0 ? Math.round(total / count) : 0;
+   220→
+   221→  function toggleCollapse(idx: number) {
+   222→    setCollapsed((prev) => {
+   223→      const next = new Set(prev);
+   224→      if (next.has(idx)) next.delete(idx);
+   225→      else next.add(idx);
+   226→      return next;
+   227→    });
+   228→  }
+   229→
+   230→  async function handleDelete() {
+   231→    if (!deleteTarget) return;
+   232→    setDeleting(true);
+   233→    const r = await deleteJSON(`/api/transaksi/${deleteTarget.id}`);
+   234→    setDeleting(false);
+   235→    if (!r.ok) return toast.error(r.error || "Gagal menghapus");
+   236→    toast.success("Transaksi dihapus");
+   237→    setDeleteTarget(null);
+   238→    setDetailItem(null);
+   239→    refetch();
+   240→  }
+   241→
+   242→  const baseRow: Pick<RowProps, "isPemasukan" | "nominalColor" | "sign" | "onDetail" | "onDelete"> = {
+   243→    isPemasukan,
+   244→    nominalColor,
+   245→    sign,
+   246→    onDetail: setDetailItem,
+   247→    onDelete: setDeleteTarget,
+   248→  };
+   249→
+   250→  return (
+   251→    <div className="space-y-5">
+   252→      <PageHeader
+   253→        title={title}
+   254→        description={`Catat & kelola ${title.toLowerCase()} kas RT 002 per bulan`}
+   255→        icon={<Icon className="h-5 w-5" />}
+   256→        actions={
+   257→          <Button onClick={() => setCreateOpen(true)} className="touch-target">
+   258→            <Plus className="h-4 w-4" /> Catat {title}
+   259→          </Button>
+   260→        }
+   261→      />
+   262→
+   263→      {/* Summary StatCards */}
+   264→      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+   265→        <StatCard title={`Total ${title}`} tone={tone} value={<RupiahText value={total} />} icon={<Wallet className="h-5 w-5" />} hint={`Akumulasi ${count} transaksi`} />
+   266→        <StatCard title="Jumlah Transaksi" tone="neutral" value={count} icon={<Hash className="h-5 w-5" />} hint={kategori !== "all" ? `Filter: ${kategori}` : "Tanpa filter"} />
+   267→        <StatCard title="Bulan Ini" tone={tone} value={<RupiahText value={bulanIni} />} icon={<Calendar className="h-5 w-5" />} hint={mounted ? formatTanggalID(new Date()) : "\u00A0"} />
+   268→        <StatCard title="Rata-rata / Transaksi" tone="default" value={<RupiahText value={rataRata} />} icon={<Receipt className="h-5 w-5" />} hint="Nilai rata-rata" />
+   269→      </div>
+   270→
+   271→      {/* Filter bar: search + kategori + year selector (mobile stacked) */}
+   272→      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+   273→        <div className="relative flex-1">
+   274→          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+   275→          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari keterangan, kode, nama…" className="touch-target pl-9" aria-label="Cari transaksi" />
+   276→          {q && (
+   277→            <button type="button" onClick={() => setQ("")} className="touch-target absolute top-1/2 right-2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-accent" aria-label="Hapus pencarian">
+   278→              <X className="h-4 w-4" />
+   279→            </button>
+   280→          )}
+   281→        </div>
+   282→        <div className="flex flex-wrap items-center gap-2">
+   283→          <Select value={kategori} onValueChange={setKategori}>
+   284→            <SelectTrigger className="touch-target w-full sm:w-52" aria-label="Filter kategori">
+   285→              <Filter className="mr-1 h-4 w-4" />
+   286→              <SelectValue placeholder="Semua kategori" />
+   287→            </SelectTrigger>
+   288→            <SelectContent>
+   289→              <SelectItem value="all">Semua Kategori</SelectItem>
+   290→              {kategoriList.map((k) => (
+   291→                <SelectItem key={k} value={k}>{k}</SelectItem>
+   292→              ))}
+   293→            </SelectContent>
+   294→          </Select>
+   295→          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+   296→            <SelectTrigger className="touch-target w-full sm:w-32" aria-label="Filter tahun">
+   297→              <Calendar className="mr-1 h-4 w-4" />
+   298→              <SelectValue />
+   299→            </SelectTrigger>
+   300→            <SelectContent>
+   301→              {yearOptions.map((y) => (
+   302→                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+   303→              ))}
+   304→            </SelectContent>
+   305→          </Select>
+   306→          {(q || kategori !== "all") && (
+   307→            <Button variant="outline" size="sm" onClick={() => { setQ(""); setKategori("all"); }} className="touch-target" aria-label="Reset filter">
+   308→              <X className="h-4 w-4" /><span className="hidden md:inline">Semua</span>
+   309→            </Button>
+   310→          )}
+   311→        </div>
+   312→      </div>
+   313→
+   314→      {/* Monthly grouping */}
+   315→      <section>
+   316→        <SectionTitle title={`Buku Kas ${title} ${year}`} action={<span className="text-xs text-muted-foreground">{yearCount} transaksi • {monthGroups.length} bulan</span>} />
+   317→
+   318→        {loading ? (
+   319→          <div className="grid gap-3">
+   320→            {Array.from({ length: isMobile ? 4 : 6 }).map((_, i) => (
+   321→              <CardSkeleton key={i} className="h-24" />
+   322→            ))}
+   323→          </div>
+   324→        ) : error ? (
+   325→          <ErrorState message={error} onRetry={refetch} />
+   326→        ) : items.length === 0 ? (
+   327→          <EmptyState
+   328→            icon={<Icon className="h-6 w-6" />}
+   329→            title={`Belum ada ${title.toLowerCase()}`}
+   330→            description={`Mulai catat ${title.toLowerCase()} kas RT dengan menekan tombol "Catat ${title}".`}
+   331→            action={<Button onClick={() => setCreateOpen(true)} className="touch-target"><Plus className="h-4 w-4" /> Catat {title}</Button>}
+   332→          />
+   333→        ) : monthGroups.length === 0 ? (
+   334→          <EmptyState
+   335→            icon={<Calendar className="h-6 w-6" />}
+   336→            title={`Tidak ada transaksi tahun ${year}`}
+   337→            description={`Tidak ada ${title.toLowerCase()} tercatat di tahun ${year}. Pilih tahun lain atau catat transaksi baru.`}
+   338→            action={<Button onClick={() => setCreateOpen(true)} className="touch-target"><Plus className="h-4 w-4" /> Catat {title}</Button>}
+   339→          />
+   340→        ) : (
+   341→          <div className="space-y-4">
+   342→            {monthGroups.map((g) => {
+   343→              const isCollapsed = collapsed.has(g.monthIdx);
+   344→              const rowProps: RowProps = { ...baseRow, items: g.items };
+   345→              return (
+   346→                <div key={g.monthIdx} className="rounded-xl border bg-card">
+   347→                  {/* Sticky month header bar */}
+   348→                  <div className="sticky top-16 z-20 flex items-center gap-2 rounded-t-xl border-b bg-card/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+   349→                    <button
+   350→                      type="button"
+   351→                      onClick={() => toggleCollapse(g.monthIdx)}
+   352→                      className="touch-target -ml-1 rounded-md p-1.5 hover:bg-accent"
+   353→                      aria-label={isCollapsed ? `Buka ${g.monthName}` : `Tutup ${g.monthName}`}
+   354→                      aria-expanded={!isCollapsed}
+   355→                    >
+   356→                      {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+   357→                    </button>
+   358→                    <Calendar className="hidden h-4 w-4 shrink-0 text-muted-foreground sm:block" />
+   359→                    <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{g.monthName} {year}</h3>
+   360→                    <Badge variant="secondary" className="shrink-0 text-[11px]">{g.items.length} trx</Badge>
+   361→                    <p className={`shrink-0 text-sm font-bold tabular-nums ${nominalColor}`}>{sign}{formatRupiah(g.total)}</p>
+   362→                  </div>
+   363→
+   364→                  {/* Body */}
+   365→                  {!isCollapsed && (
+   366→                    <>
+   367→                      {isMobile ? (
+   368→                        <MobileCardList {...rowProps} />
+   369→                      ) : (
+   370→                        <div className="overflow-x-auto scrollbar-thin">
+   371→                          <DesktopTable {...rowProps} />
+   372→                        </div>
+   373→                      )}
+   374→                      {/* Monthly subtotal footer */}
+   375→                      <div className="flex items-center justify-between rounded-b-xl border-t bg-muted/40 px-3 py-2 text-sm">
+   376→                        <span className="font-medium">Total {g.monthName}</span>
+   377→                        <span className={`font-bold tabular-nums ${nominalColor}`}>{sign}{formatRupiah(g.total)}</span>
+   378→                      </div>
+   379→                    </>
+   380→                  )}
+   381→                </div>
+   382→              );
+   383→            })}
+   384→
+   385→            {/* Year total summary */}
+   386→            <div className={`flex flex-col gap-2 rounded-xl border-2 p-4 sm:flex-row sm:items-center sm:justify-between ${isPemasukan ? "border-success/40 bg-success/5" : "border-destructive/40 bg-destructive/5"}`}>
+   387→              <div className="flex items-center gap-3">
+   388→                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isPemasukan ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
+   389→                  <Icon className="h-5 w-5" />
+   390→                </span>
+   391→                <div>
+   392→                  <p className="text-xs text-muted-foreground">Total Tahun {year}</p>
+   393→                  <p className="text-sm font-medium">{yearCount} transaksi • {monthGroups.length} bulan aktif</p>
+   394→                </div>
+   395→              </div>
+   396→              <p className={`text-2xl font-bold tabular-nums ${nominalColor}`}>{sign}{formatRupiah(yearTotal)}</p>
+   397→            </div>
+   398→          </div>
+   399→        )}
+   400→      </section>
+   401→
+   402→      {/* Create Dialog */}
+   403→      <CreateTransaksiDialog
+   404→        open={createOpen}
+   405→        onOpenChange={setCreateOpen}
+   406→        jenis={jenis}
+   407→        kategoriList={kategoriList}
+   408→        onDone={refetch}
+   409→      />
+   410→
+   411→      {/* Detail Dialog */}
+   412→      <Dialog open={!!detailItem} onOpenChange={(o) => !o && setDetailItem(null)}>
+   413→        <DialogContent className="max-h-[90vh] overflow-y-auto">
+   414→          {detailItem && (
+   415→            <DetailBody
+   416→              trx={detailItem}
+   417→              isPemasukan={isPemasukan}
+   418→              nominalColor={nominalColor}
+   419→              sign={sign}
+   420→              onPrint={() => toast.info("Membuka dialog cetak kwitansi…")}
+   421→              onDelete={() => setDeleteTarget(detailItem)}
+   422→            />
+   423→          )}
+   424→        </DialogContent>
+   425→      </Dialog>
+   426→
+   427→      {/* Delete confirmation */}
+   428→      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+   429→        <AlertDialogContent>
+   430→          <AlertDialogHeader>
+   431→            <AlertDialogTitle>Hapus transaksi ini?</AlertDialogTitle>
+   432→            <AlertDialogDescription>
+   433→              {deleteTarget?.kode} — {deleteTarget?.keterangan}. Tindakan ini tidak dapat dibatalkan. Kwitansi terkait juga akan dihapus.
+   434→            </AlertDialogDescription>
+   435→          </AlertDialogHeader>
+   436→          <AlertDialogFooter>
+   437→            <AlertDialogCancel disabled={deleting} className="touch-target">Batal</AlertDialogCancel>
+   438→            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="touch-target bg-destructive text-white hover:bg-destructive/90">
+   439→              {deleting ? "Menghapus…" : "Hapus"}
+   440→            </AlertDialogAction>
+   441→          </AlertDialogFooter>
+   442→        </AlertDialogContent>
+   443→      </AlertDialog>
+   444→    </div>
+   445→  );
+   446→}
+   447→
+   448→/** ====== MOBILE CARD LIST ====== */
+   449→function MobileCardList({ items, isPemasukan, nominalColor, sign, onDetail, onDelete }: RowProps) {
+   450→  const Icon = isPemasukan ? TrendingUp : TrendingDown;
+   451→  return (
+   452→    <div className="divide-y">
+   453→      {items.map((t) => (
+   454→        <div key={t.id} className="flex items-start gap-3 p-3">
+   455→          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isPemasukan ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
+   456→            <Icon className="h-5 w-5" />
+   457→          </span>
+   458→          <div className="min-w-0 flex-1">
+   459→            <p className="truncate text-sm font-semibold">{t.keterangan}</p>
+   460→            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+   461→              <Badge variant="secondary" className="text-[11px]">{t.kategori}</Badge>
+   462→              <span>•</span>
+   463→              <span className="truncate font-mono">{t.kode}</span>
+   464→            </div>
+   465→            <p className="mt-1 text-[11px] text-muted-foreground">
+   466→              {formatTanggalID(t.tanggal)} • {(isPemasukan ? t.sumber : t.penerima) || "-"}
+   467→            </p>
+   468→          </div>
+   469→          <div className="flex shrink-0 flex-col items-end gap-1">
+   470→            <p className={`text-sm font-bold tabular-nums ${nominalColor}`}>{sign}{formatRupiah(t.nominal)}</p>
+   471→            <div className="flex gap-1">
+   472→              <button onClick={() => onDetail(t)} className="touch-target rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Lihat detail">
+   473→                <Eye className="h-4 w-4" />
+   474→              </button>
+   475→              <button onClick={() => onDelete(t)} className="touch-target rounded-md p-1.5 text-destructive hover:bg-destructive/10" aria-label="Hapus transaksi">
+   476→                <Trash2 className="h-4 w-4" />
+   477→              </button>
+   478→            </div>
+   479→          </div>
+   480→        </div>
+   481→      ))}
+   482→    </div>
+   483→  );
+   484→}
+   485→
+   486→/** ====== DESKTOP TABLE ====== */
+   487→function DesktopTable({ items, isPemasukan, nominalColor, sign, onDetail, onDelete }: RowProps) {
+   488→  return (
+   489→    <Table>
+   490→      <TableHeader>
+   491→        <TableRow>
+   492→          <TableHead>Tanggal</TableHead>
+   493→          <TableHead>Kode</TableHead>
+   494→          <TableHead>Keterangan</TableHead>
+   495→          <TableHead>Kategori</TableHead>
+   496→          <TableHead>{isPemasukan ? "Sumber" : "Penerima"}</TableHead>
+   497→          <TableHead className="text-right">Nominal</TableHead>
+   498→          <TableHead className="text-right">Aksi</TableHead>
+   499→        </TableRow>
+   500→      </TableHeader>
+   501→      <TableBody>
+   502→        {items.map((t) => (
+   503→          <TableRow key={t.id}>
+   504→            <TableCell className="whitespace-nowrap text-sm">{formatTanggalID(t.tanggal)}</TableCell>
+   505→            <TableCell className="max-w-[120px] truncate font-mono text-xs text-muted-foreground">{t.kode}</TableCell>
+   506→            <TableCell className="max-w-[260px] truncate text-sm font-medium">{t.keterangan}</TableCell>
+   507→            <TableCell><Badge variant="secondary" className="text-[11px]">{t.kategori}</Badge></TableCell>
+   508→            <TableCell className="text-sm text-muted-foreground">{(isPemasukan ? t.sumber : t.penerima) || "-"}</TableCell>
+   509→            <TableCell className={`whitespace-nowrap text-right text-sm font-bold tabular-nums ${nominalColor}`}>{sign}{formatRupiah(t.nominal)}</TableCell>
+   510→            <TableCell className="text-right">
+   511→              <div className="flex justify-end gap-1">
+   512→                <Button variant="ghost" size="icon" onClick={() => onDetail(t)} aria-label="Lihat detail" className="touch-target"><Eye className="h-4 w-4" /></Button>
+   513→                <Button variant="ghost" size="icon" onClick={() => onDelete(t)} aria-label="Hapus transaksi" className="touch-target text-destructive hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+   514→              </div>
+   515→            </TableCell>
+   516→          </TableRow>
+   517→        ))}
+   518→      </TableBody>
+   519→    </Table>
+   520→  );
+   521→}
+   522→
+   523→/** ====== DETAIL BODY ====== */
+   524→function DetailBody({
+   525→  trx, isPemasukan, nominalColor, sign, onPrint, onDelete,
+   526→}: {
+   527→  trx: Transaksi;
+   528→  isPemasukan: boolean;
+   529→  nominalColor: string;
+   530→  sign: string;
+   531→  onPrint: () => void;
+   532→  onDelete: () => void;
+   533→}) {
+   534→  const rows: { label: string; value: string }[] = [
+   535→    { label: "Kode", value: trx.kode },
+   536→    { label: "Tanggal", value: formatTanggalLengkapID(trx.tanggal) },
+   537→    { label: "Kategori", value: trx.kategori },
+   538→    { label: "Keterangan", value: trx.keterangan },
+   539→    { label: isPemasukan ? "Sumber" : "Penerima", value: (isPemasukan ? trx.sumber : trx.penerima) || "-" },
+   540→    { label: "Metode", value: trx.metode },
+   541→    { label: "Status", value: trx.status },
+   542→    { label: "Dibuat", value: relativeTime(trx.createdAt) },
+   543→  ];
+   544→  return (
+   545→    <>
+   546→      <DialogHeader>
+   547→        <div className="flex items-start justify-between gap-3 pr-6">
+   548→          <div className="min-w-0">
+   549→            <DialogTitle className="truncate">{trx.keterangan}</DialogTitle>
+   550→            <DialogDescription className="mt-0.5 font-mono text-xs">{trx.kode}</DialogDescription>
+   551→          </div>
+   552→          <TrendBadge jenis={trx.jenis} />
+   553→        </div>
+   554→      </DialogHeader>
+   555→
+   556→      <div className="rounded-xl border bg-muted/40 p-4">
+   557→        <p className="text-xs text-muted-foreground">Nominal</p>
+   558→        <p className={`mt-1 text-2xl font-bold tabular-nums ${nominalColor}`}>{sign}{formatRupiah(trx.nominal)}</p>
+   559→      </div>
+   560→
+   561→      <dl className="grid grid-cols-2 gap-x-3 gap-y-3">
+   562→        {rows.map((r) => (
+   563→          <div key={r.label} className="min-w-0">
+   564→            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">{r.label}</dt>
+   565→            <dd className="mt-0.5 break-words text-sm font-medium">{r.value}</dd>
+   566→          </div>
+   567→        ))}
+   568→        {trx.buktiUrl && (
+   569→          <div className="col-span-2 min-w-0">
+   570→            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Bukti</dt>
+   571→            <dd className="mt-0.5 break-words text-sm font-medium text-primary">{trx.buktiUrl}</dd>
+   572→          </div>
+   573→        )}
+   574→      </dl>
+   575→
+   576→      <DialogFooter>
+   577→        <Button variant="outline" onClick={onDelete} className="touch-target text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /> Hapus</Button>
+   578→        <Button onClick={onPrint} className="touch-target"><Printer className="h-4 w-4" /> Cetak Kwitansi</Button>
+   579→      </DialogFooter>
+   580→    </>
+   581→  );
+   582→}
+   583→
+   584→/** ====== CREATE DIALOG ====== */
+   585→function CreateTransaksiDialog({
+   586→  open, onOpenChange, jenis, kategoriList, onDone,
+   587→}: {
+   588→  open: boolean;
+   589→  onOpenChange: (o: boolean) => void;
+   590→  jenis: Jenis;
+   591→  kategoriList: string[];
+   592→  onDone: () => void;
+   593→}) {
+   594→  const isPemasukan = jenis === "pemasukan";
+   595→  const title = isPemasukan ? "Catat Pemasukan" : "Catat Pengeluaran";
+   596→
+   597→  const [tanggal, setTanggal] = useState<string>(() =>
+   598→    typeof window !== "undefined" ? toISODate(new Date()) : "2026-01-01",
+   599→  );
+   600→  const [kategori, setKategori] = useState<string>(kategoriList[0] ?? "");
+   601→  const [keterangan, setKeterangan] = useState("");
+   602→  const [nominal, setNominal] = useState(0);
+   603→  const [penerimaSumber, setPenerimaSumber] = useState("");
+   604→  const [metode, setMetode] = useState<string>("Tunai");
+   605→  const [buktiName, setBuktiName] = useState<string>("");
+   606→  const [saving, setSaving] = useState(false);
+   607→  const [touched, setTouched] = useState(false);
+   608→
+   609→  function resetForm() {
+   610→    setTanggal(typeof window !== "undefined" ? toISODate(new Date()) : "2026-01-01");
+   611→    setKategori(kategoriList[0] ?? "");
+   612→    setKeterangan("");
+   613→    setNominal(0);
+   614→    setPenerimaSumber("");
+   615→    setMetode("Tunai");
+   616→    setBuktiName("");
+   617→    setTouched(false);
+   618→  }
+   619→
+   620→  const keteranganInvalid = !keterangan.trim();
+   621→  const nominalInvalid = !nominal || nominal <= 0;
+   622→  const hasError = touched && (keteranganInvalid || nominalInvalid);
+   623→
+   624→  async function onSubmit(e: React.FormEvent) {
+   625→    e.preventDefault();
+   626→    setTouched(true);
+   627→    if (keteranganInvalid || nominalInvalid) return;
+   628→
+   629→    setSaving(true);
+   630→    const body: Record<string, unknown> = {
+   631→      jenis, kategori, keterangan: keterangan.trim(), nominal, tanggal, metode, buktiUrl: buktiName || undefined,
+   632→    };
+   633→    if (isPemasukan) body.sumber = penerimaSumber.trim() || undefined;
+   634→    else body.penerima = penerimaSumber.trim() || undefined;
+   635→
+   636→    const r = await postJSON("/api/transaksi", body);
+   637→    setSaving(false);
+   638→    if (!r.ok) return toast.error(r.error || "Gagal menyimpan");
+   639→    toast.success(`${isPemasukan ? "Pemasukan" : "Pengeluaran"} berhasil dicatat`);
+   640→    resetForm();
+   641→    onOpenChange(false);
+   642→    onDone();
+   643→  }
+   644→
+   645→  return (
+   646→    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) resetForm(); }}>
+   647→      <DialogContent className="max-h-[90vh] overflow-y-auto">
+   648→        <DialogHeader>
+   649→          <DialogTitle>{title}</DialogTitle>
+   650→          <DialogDescription>
+   651→            Isi data {title.toLowerCase()} kas RT 002. Kode & kwitansi dibuat otomatis.
+   652→          </DialogDescription>
+   653→        </DialogHeader>
+   654→
+   655→        <form onSubmit={onSubmit} className="grid gap-4">
+   656→          <div className="grid gap-3 sm:grid-cols-2">
+   657→            <div className="grid gap-1.5">
+   658→              <Label htmlFor="trx-tanggal">Tanggal</Label>
+   659→              <Input id="trx-tanggal" type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className="touch-target" required />
+   660→            </div>
+   661→            <div className="grid gap-1.5">
+   662→              <Label htmlFor="trx-kategori">Kategori</Label>
+   663→              <Select value={kategori} onValueChange={setKategori}>
+   664→                <SelectTrigger id="trx-kategori" className="touch-target w-full"><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
+   665→                <SelectContent>
+   666→                  {kategoriList.map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+   667→                </SelectContent>
+   668→              </Select>
+   669→            </div>
+   670→          </div>
+   671→
+   672→          <div className="grid gap-1.5">
+   673→            <Label htmlFor="trx-ket">Keterangan</Label>
+   674→            <Input
+   675→              id="trx-ket"
+   676→              value={keterangan}
+   677→              onChange={(e) => setKeterangan(e.target.value)}
+   678→              placeholder={isPemasukan ? "Contoh: Iuran bulanan warga Blok Mawar" : "Contoh: Pembelian perlengkapan kebersihan"}
+   679→              className="touch-target"
+   680→              aria-invalid={hasError && keteranganInvalid}
+   681→              required
+   682→            />
+   683→            {hasError && keteranganInvalid && <p className="text-xs text-destructive">Keterangan wajib diisi.</p>}
+   684→          </div>
+   685→
+   686→          <div className="grid gap-1.5">
+   687→            <Label htmlFor="trx-nominal">Nominal (Rp)</Label>
+   688→            <div className="relative">
+   689→              <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">Rp</span>
+   690→              <Input
+   691→                id="trx-nominal"
+   692→                inputMode="numeric"
+   693→                value={toThousandInput(nominal)}
+   694→                onChange={(e) => setNominal(parseRupiahInput(e.target.value))}
+   695→                placeholder="0"
+   696→                className="touch-target pl-9 tabular-nums"
+   697→                aria-invalid={hasError && nominalInvalid}
+   698→                required
+   699→              />
+   700→            </div>
+   701→            {hasError && nominalInvalid && <p className="text-xs text-destructive">Nominal harus &gt; 0.</p>}
+   702→            <p className="text-xs text-muted-foreground">{formatRupiah(nominal)}</p>
+   703→          </div>
+   704→
+   705→          <div className="grid gap-3 sm:grid-cols-2">
+   706→            <div className="grid gap-1.5">
+   707→              <Label htmlFor="trx-penerima">{isPemasukan ? "Sumber" : "Penerima"}</Label>
+   708→              <Input id="trx-penerima" value={penerimaSumber} onChange={(e) => setPenerimaSumber(e.target.value)} placeholder={isPemasukan ? "Warga / Donatur" : "Nama penerima / vendor"} className="touch-target" />
+   709→            </div>
+   710→            <div className="grid gap-1.5">
+   711→              <Label htmlFor="trx-metode">Metode</Label>
+   712→              <Select value={metode} onValueChange={setMetode}>
+   713→                <SelectTrigger id="trx-metode" className="touch-target w-full"><SelectValue placeholder="Pilih metode" /></SelectTrigger>
+   714→                <SelectContent>
+   715→                  {METODE_LIST.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+   716→                </SelectContent>
+   717→              </Select>
+   718→            </div>
+   719→          </div>
+   720→
+   721→          <div className="grid gap-1.5">
+   722→            <Label htmlFor="trx-bukti">Bukti Transaksi</Label>
+   723→            <label htmlFor="trx-bukti" className="touch-target flex cursor-pointer items-center gap-2 rounded-md border border-dashed bg-muted/40 px-3 py-2 text-sm text-muted-foreground hover:bg-muted">
+   724→              <Camera className="h-4 w-4" />
+   725→              <span className="truncate">{buktiName || "Pilih foto / ambil dari kamera"}</span>
+   726→            </label>
+   727→            <Input id="trx-bukti" type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setBuktiName(e.target.files?.[0]?.name ?? "")} />
+   728→            {buktiName && (
+   729→              <button type="button" onClick={() => setBuktiName("")} className="touch-target mt-1 inline-flex w-fit items-center gap-1 text-xs text-destructive">
+   730→                <X className="h-3 w-3" /> Hapus berkas
+   731→              </button>
+   732→            )}
+   733→          </div>
+   734→
+   735→          <DialogFooter>
+   736→            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="touch-target">Batal</Button>
+   737→            <Button type="submit" disabled={saving} className="touch-target">{saving ? "Menyimpan…" : `Simpan ${title}`}</Button>
+   738→          </DialogFooter>
+   739→        </form>
+   740→      </DialogContent>
+   741→    </Dialog>
+   742→  );
+   743→}
+   744→
+   745→/** ====== EXPORTED VIEWS ====== */
+   746→export function PemasukanView() {
+   747→  return <TransaksiViewBase jenis="pemasukan" />;
+   748→}
+   749→export function PengeluaranView() {
+   750→  return <TransaksiViewBase jenis="pengeluaran" />;
+   751→}
+   752→

@@ -1,6 +1,7 @@
 "use client";
 
 import { useFetch } from "@/hooks/use-fetch";
+import { useMounted } from "@/hooks/use-mounted";
 import { useAppStore } from "@/lib/store";
 import { formatRupiah, formatRupiahCompact, formatTanggalID, relativeTime } from "@/lib/format";
 import { StatCard, SectionTitle, CardSkeleton, ErrorState, TrendBadge, StatusBadge, RupiahText, EmptyState } from "@/components/shared";
@@ -29,6 +30,7 @@ export function DashboardView() {
   const { data, loading, error, refetch } = useFetch<DashboardData>("/api/dashboard");
   const { setActiveView, setQuickOpen } = useAppStore();
   const { resolvedTheme } = useTheme();
+  const mounted = useMounted();
   const isDark = resolvedTheme === "dark";
 
   if (loading) {
@@ -64,7 +66,7 @@ export function DashboardView() {
           <div className="min-w-0">
             <p className="text-xs font-medium text-primary-foreground/80">Selamat datang kembali</p>
             <h2 className="text-fluid-h3 mt-0.5 font-bold">Admin RT 002 Mawar</h2>
-            <p className="mt-1 text-xs text-primary-foreground/80">Per {formatTanggalID(new Date())}</p>
+            <p className="mt-1 text-xs text-primary-foreground/80">Per {mounted ? formatTanggalID(new Date()) : "\u00A0"}</p>
           </div>
           <div className="hidden h-14 w-14 items-center justify-center rounded-2xl bg-white/20 sm:flex">
             <Wallet className="h-7 w-7" />
