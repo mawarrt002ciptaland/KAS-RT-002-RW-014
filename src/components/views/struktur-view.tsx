@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useFetch, postJSON, patchJSON, deleteJSON } from "@/hooks/use-fetch";
 import { PageHeader, EmptyState, ErrorState, CardSkeleton, Card, openWhatsApp } from "@/components/shared";
 import { RT_INFO } from "@/lib/constants";
@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Network, Plus, Phone, Mail, Trash2, Edit, User, Crown } from "lucide-react";
+import Image from "next/image";
+import { Network, Plus, Phone, Mail, Trash2, Edit, User, Crown, Upload, Link2, Loader2, Camera, X } from "lucide-react";
 
 interface Pengurus {
   id: string; nama: string; jabatan: string; urutan: number;
@@ -27,7 +28,7 @@ const JABATAN_OPTIONS = [
   "Koordinator Pemuda", "Koordinator Agama", "Staf Administrasi",
 ];
 
-const EMPTY_FORM = { nama: "", jabatan: "", bidang: "", telepon: "", email: "", urutan: "0" };
+const EMPTY_FORM = { nama: "", jabatan: "", bidang: "", telepon: "", email: "", urutan: "0", foto: "" };
 
 /** First letters of first 2 words, uppercase. */
 function initials(name: string) {
@@ -50,6 +51,26 @@ export function StrukturView() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingFoto, setUploadingFoto] = useState(false);
+  const [fotoUrlInput, setFotoUrlInput] = useState("");
+  const fotoInputRef = useRef<HTMLInputElement>(null);
+
+  async function uploadFoto(file: File) {
+    setUploadingFoto(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const j = await res.json();
+      if (!res.ok) { toast.error(j.error || "Gagal mengunggah foto"); return; }
+      setForm((f) => ({ ...f, foto: j.url }));
+      toast.success("Foto pengurus terunggah");
+    } catch {
+      toast.error("Gagal mengunggah foto");
+    } finally {
+      setUploadingFoto(false);
+    }
+  }
   const [hapus, setHapus] = useState<Pengurus | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -64,10 +85,11 @@ export function StrukturView() {
     .filter((p) => p !== ketua && !tier2Ids.has(p.id))
     .sort((a, b) => (a.urutan ?? 0) - (b.urutan ?? 0) || a.nama.localeCompare(b.nama));
 
-  function openCreate() { setFormMode("create"); setEditId(null); setForm(EMPTY_FORM); setFormOpen(true); }
+  function openCreate() { setFormMode("create"); setEditId(null); setForm(EMPTY_FORM); setFotoUrlInput(""); setFormOpen(true); }
   function openEdit(p: Pengurus) {
     setFormMode("edit"); setEditId(p.id);
-    setForm({ nama: p.nama, jabatan: p.jabatan, bidang: p.bidang || "", telepon: p.telepon || "", email: p.email || "", urutan: String(p.urutan ?? 0) });
+    setForm({ nama: p.nama, jabatan: p.jabatan, bidang: p.bidang || "", telepon: p.telepon || "", email: p.email || "", urutan: String(p.urutan ?? 0), foto: p.foto || "" });
+    setFotoUrlInput("");
     setFormOpen(true);
   }
 
@@ -79,6 +101,7 @@ export function StrukturView() {
       nama: form.nama.trim(), jabatan: form.jabatan.trim(),
       bidang: form.bidang || undefined, telepon: form.telepon || undefined,
       email: form.email || undefined, urutan: Number(form.urutan) || 0,
+      foto: form.foto || undefined,
     };
     const r = formMode === "edit" && editId ? await patchJSON(`/api/pengurus/${editId}`, payload) : await postJSON("/api/pengurus", payload);
     setSubmitting(false);
@@ -184,10 +207,68 @@ export function StrukturView() {
           </DialogHeader>
 
           <form onSubmit={onSubmit} className="space-y-4">
-            {/* Avatar preview (live initials) */}
-            <div className="flex justify-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary ring-2 ring-primary/20">
-                {form.nama.trim() ? initials(form.nama) : <User className="h-8 w-8" />}
+            {/* Photo upload area */}
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full ring-2 ring-primary/20">
+                {form.foto ? (
+                  <Image src={form.foto} alt="Foto pengurus" fill className="object-cover" unoptimized />
+                ) : form.nama.trim() ? (
+                  <div className="flex h-full w-full items-center justify-center bg-primary text-2xl font-bold text-primary-foreground">
+                    {initials(form.nama)}
+                  </div>
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
+                    <User className="h-9 w-9" />
+                  </div>
+                )}
+                {uploadingFoto && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <Loader2 className="h-7 w-7 animate-spin text-white" />
+                  </div>
+                )}
+              </div>
+              <input
+                ref={fotoInputRef}
+                type="file"
+                accept="image/*"
+                capture="user"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFoto(f); e.target.value = ""; }}
+              />
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button type="button" size="sm" variant="outline" onClick={() => fotoInputRef.current?.click()} disabled={uploadingFoto} className="touch-target">
+                  <Camera className="h-4 w-4" /> Upload Foto
+                </Button>
+                {form.foto ? (
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setForm((f) => ({ ...f, foto: "" }))} disabled={uploadingFoto} className="touch-target text-destructive hover:bg-destructive/10">
+                    <X className="h-4 w-4" /> Hapus Foto
+                  </Button>
+                ) : null}
+              </div>
+              <div className="flex w-full items-center gap-2">
+                <Input
+                  type="url"
+                  value={fotoUrlInput}
+                  onChange={(e) => setFotoUrlInput(e.target.value)}
+                  placeholder="atau tempel URL gambar (https://...)"
+                  className="touch-target text-xs"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const u = fotoUrlInput.trim();
+                    if (!u) return toast.error("Masukkan URL gambar");
+                    if (!/^https?:\/\//i.test(u)) return toast.error("URL harus diawali http:// atau https://");
+                    setForm((f) => ({ ...f, foto: u }));
+                    setFotoUrlInput("");
+                    toast.success("Foto dari URL diterapkan");
+                  }}
+                  className="touch-target shrink-0"
+                >
+                  <Link2 className="h-4 w-4" /> Terapkan
+                </Button>
               </div>
             </div>
 

@@ -891,3 +891,34 @@ Verification (Agent Browser):
 Stage Summary:
 - The kwitansi file download now works: clicking Unduh/Cetak opens the receipt in a new tab (escaping the iframe) and shows the print dialog → user saves as PDF → real downloadable file.
 - All 6 buttons wired (3 Unduh + 3 Cetak across desktop table, mobile card, detail dialog).
+
+---
+Task ID: PENGURUS-FOTO
+Agent: Main (Z.ai Code)
+Task: Add photo upload feature to Tambah Pengurus RT 002 dialog
+
+Work Log:
+- Updated POST /api/pengurus to accept `foto` field (was missing from create).
+- PATCH /api/pengurus/[id] already passes body through (accepts foto).
+- Updated struktur-view.tsx:
+  - Added `foto` to EMPTY_FORM + openEdit prefill + onSubmit payload.
+  - Added `uploadingFoto` state, `fotoUrlInput` state, `fotoInputRef`.
+  - Added `uploadFoto(file)` helper: FormData POST /api/upload → set form.foto + toast.
+  - Replaced simple initials avatar with full photo upload area:
+    - 96px circular avatar preview: foto image (next/image fill object-cover) → initials of nama (green) → User icon fallback. Loader2 spinner overlay while uploading.
+    - "Upload Foto" button → hidden file input (accept image/*, capture="user" for front camera) → uploadFoto().
+    - "Hapus Foto" button (only when foto set) → clears foto.
+    - URL input + "Terapkan" button → validates http(s):// → sets foto + toast.
+- Foto saved to DB on Simpan (create: POST with foto; edit: PATCH with foto). Org chart cards already render p.foto via AvatarImage (existing).
+
+Agent Browser Verification:
+- Opened Struktur Pengurus → Tambah Pengurus dialog.
+- Dialog has "Upload Foto" button + URL input + "Terapkan" button.
+- Typed name "Budi Santosi" → avatar shows initials "BS".
+- Pasted image URL + clicked Terapkan → avatar shows the loaded image (complete:true).
+- "Hapus Foto" button appeared; clicking reverted avatar to initials.
+- No errors. Lint clean (0 errors).
+
+Stage Summary:
+- Tambah Pengurus RT 002 dialog now supports photo upload (device camera/gallery via POST /api/upload + URL paste + Hapus Foto).
+- Photo integrates with database (foto field) and displays on the org chart cards (Ketua/Tier2/Tier3 all use AvatarImage).

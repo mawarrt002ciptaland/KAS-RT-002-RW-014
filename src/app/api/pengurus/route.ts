@@ -16,10 +16,10 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { nama, jabatan, telepon, email, bidang, urutan } = body;
+    const { nama, jabatan, telepon, email, bidang, urutan, foto } = body;
     if (!nama || !jabatan) return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 });
     const item = await db.pengurus.create({
-      data: { nama, jabatan, telepon: telepon || null, email: email || null, bidang: bidang || null, urutan: urutan || 0 },
+      data: { nama, jabatan, telepon: telepon || null, email: email || null, bidang: bidang || null, urutan: urutan || 0, foto: foto || null },
     });
     return NextResponse.json(item, { status: 201 });
   } catch (e) {
