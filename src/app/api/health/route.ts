@@ -1,6 +1,6 @@
-// app/api/health/route.ts — versi Prisma
+// src/app/api/health/route.ts
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma'; // sesuaikan dengan path singleton Anda
+import { PrismaClient } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -13,6 +13,7 @@ export async function GET() {
     : 'TIDAK DISET';
 
   if (dbUrl) {
+    const prisma = new PrismaClient();
     const start = Date.now();
     try {
       await prisma.$queryRaw`SELECT 1`;
@@ -23,6 +24,8 @@ export async function GET() {
       checks.jumlah_tabel = t[0].count;
     } catch (err: any) {
       checks.prisma_koneksi = `GAGAL — ${err.message?.slice(0, 200)}`;
+    } finally {
+      await prisma.$disconnect().catch(() => {});
     }
   }
 
