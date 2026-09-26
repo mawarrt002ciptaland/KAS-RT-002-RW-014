@@ -1,6 +1,6 @@
 // src/app/api/health/route.ts
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { db } from '@/lib/db'; // ← sesuaikan jika file Anda ternyata bernama lain
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -13,20 +13,18 @@ export async function GET() {
     : 'TIDAK DISET';
 
   if (dbUrl) {
-    const prisma = new PrismaClient();
     const start = Date.now();
     try {
-      await prisma.$queryRaw`SELECT 1`;
+      await db.$queryRaw`SELECT 1`;
       checks.prisma_koneksi = `OK (${Date.now() - start}ms)`;
-      const t = await prisma.$queryRaw<{ count: number }[]>`
+      const t = await db.$queryRaw<{ count: number }[]>`
         SELECT count(*)::int AS count FROM information_schema.tables
         WHERE table_schema = 'public'`;
       checks.jumlah_tabel = t[0].count;
     } catch (err: any) {
       checks.prisma_koneksi = `GAGAL — ${err.message?.slice(0, 200)}`;
-    } finally {
-      await prisma.$disconnect().catch(() => {});
     }
+    // sengaja TIDAK memanggil db.$disconnect() — ini instance bersama aplikasi
   }
 
   const ok = String(checks.prisma_koneksi ?? '').startsWith('OK');
